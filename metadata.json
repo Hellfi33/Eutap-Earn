@@ -1,0 +1,6 @@
+{
+  "name": "EuTap",
+  "description": "Tap-to-earn crypto airdrop game with tap rate leveling, quests, daily cipher and combo, and Web3 airdrop allocation tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,70 @@
+import { Task } from '../types';
+
+export const INITIAL_TASKS: Task[] = [
+  {
+    id: 'tg-announcement',
+    title: 'Join EuTap Telegram Announcement',
+    reward: 10000,
+    category: 'social',
+    icon: 'telegram',
+    actionUrl: 'https://t.me/eutap_official',
+    completed: false,
+  },
+  {
+    id: 'x-follow',
+    title: 'Follow EuTap Network on X (Twitter)',
+    reward: 10000,
+    category: 'social',
+    icon: 'x',
+    actionUrl: 'https://x.com/eutap_official',
+    completed: false,
+  },
+  {
+    id: 'youtube-sub',
+    title: 'Subscribe to EuTap Official YouTube',
+    reward: 15000,
+    category: 'social',
+    icon: 'youtube',
+    actionUrl: 'https://youtube.com/@eutap_official',
+    completed: false,
+  },
+  {
+    id: 'discord-join',
+    title: 'Join EuTap Community Discord Server',
+    reward: 10000,
+    category: 'community',
+    icon: 'discord',
+    actionUrl: 'https://discord.gg/eutap',
+    completed: false,
+  },
+  {
+    id: 'retweet-tag',
+    title: 'Retweet Airdrop Announcement & Tag 3 Friends',
+    reward: 20000,
+    category: 'social',
+    icon: 'retweet',
+    actionUrl: 'https://x.com/eutap_official/status/airdrop',
+    completed: false,
+  },
+  {
+    id: 'wallet-connect-task',
+    title: 'Connect Web3 Wallet (TON / EVM / Solana)',
+    reward: 50000,
+    category: 'web3',
+    icon: 'wallet',
+    completed: false,
+  },
+];
+
+export const DAILY_STREAK_REWARDS = [
+  { day: 1, reward: 500 },
+  { day: 2, reward: 1500 },
+  { day: 3, reward: 5000 },
+  { day: 4, reward: 15000 },
+  { day: 5, reward: 35000 },
+  { day: 6, reward: 80000 },
+  { day: 7, reward: 200000 },
+  { day: 8, reward: 500000 },
+  { day: 9, reward: 1500000 },
+  { day: 10, reward: 5000000 },
+];
