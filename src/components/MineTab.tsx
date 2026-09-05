@@ -54,7 +54,7 @@ export const MineTab: React.FC<MineTabProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-130px)] px-4 pb-24 max-w-md mx-auto select-none">
+    <div className="flex flex-col px-3.5 pt-2 pb-20 max-w-md mx-auto select-none">
       {/* Tap Rate Stats Card */}
       <div className="bg-[#141923] border border-white/10 rounded-2xl p-4 mt-2 mb-3 shadow-lg">
         <div className="flex items-center justify-between">

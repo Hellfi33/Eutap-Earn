@@ -33,7 +33,7 @@ export const AirdropTab: React.FC<AirdropTabProps> = ({
   );
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-130px)] px-4 pb-24 max-w-md mx-auto select-none">
+    <div className="flex flex-col px-3.5 pt-2 pb-20 max-w-md mx-auto select-none">
       {/* Top Badges Row (Matches Image 3) */}
       <div className="flex items-center justify-center gap-2 mt-3 mb-4">
         {/* TGE SEASON badge */}

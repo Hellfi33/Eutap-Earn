@@ -10,7 +10,7 @@ export const INITIAL_STATE: GameState = {
   tapPower: 1,
   energy: 1000,
   maxEnergy: 1000,
-  energyRechargeRate: 3,
+  energyRechargeRate: 1,
   lastEnergyTimestamp: Date.now(),
   critChance: 0.02,
 

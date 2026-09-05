@@ -60,7 +60,7 @@ export const EarnTab: React.FC<EarnTabProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-130px)] px-4 pb-24 max-w-md mx-auto select-none">
+    <div className="flex flex-col px-3.5 pt-2 pb-20 max-w-md mx-auto select-none">
       {/* Top Header Card */}
       <div className="flex flex-col items-center text-center mt-3 mb-5">
         <div className="relative mb-3">

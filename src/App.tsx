@@ -55,80 +55,113 @@ export default function App() {
     saveGameState(state);
   }, [state]);
 
-  // STAMINA REGENERATION ONLY:
-  // Note: As explicitly requested by the user, the balance DOES NOT auto-earn.
-  // This timer strictly recharges tap energy/stamina up to maxEnergy so player can tap again.
+  // Timestamp of the latest player tap
+  const lastTapTimeRef = useRef<number>(0);
+
+  // ENERGY REFILL ENGINE:
+  // - 1 tap is -1 from energy refill, as fast as user taps.
+  // - Every hold (no tap for >= 500ms) increases energy refill (+1 per second).
   useEffect(() => {
     const timer = setInterval(() => {
-      setState((prev) => {
-        if (prev.energy >= prev.maxEnergy) return prev;
-        const newEnergy = Math.min(prev.maxEnergy, prev.energy + prev.energyRechargeRate);
-        return {
-          ...prev,
-          energy: newEnergy,
-          lastEnergyTimestamp: Date.now(),
-        };
-      });
+      const timeSinceLastTap = Date.now() - lastTapTimeRef.current;
+      // Refill only when the player holds without tapping
+      if (timeSinceLastTap >= 500) {
+        setState((prev) => {
+          if (prev.energy >= prev.maxEnergy) return prev;
+          return {
+            ...prev,
+            energy: Math.min(prev.maxEnergy, prev.energy + 1),
+            lastEnergyTimestamp: Date.now(),
+          };
+        });
+      }
     }, 1000);
 
     return () => clearInterval(timer);
   }, []);
 
-  // Level check based on totalEarned
-  const prevTierLevelRef = useRef<number>(getTierByCoins(state.totalEarned).level);
+  // 20-Level Progression Check:
+  // Level 0 is 100,000 tap points. Each new level is x3 of previous level.
   useEffect(() => {
     const currentTier = getTierByCoins(state.totalEarned);
-    if (currentTier.level > prevTierLevelRef.current) {
-      soundFx.playLevelUp();
-      prevTierLevelRef.current = currentTier.level;
-      setState((prev) => ({
-        ...prev,
-        tapLevel: Math.max(prev.tapLevel, currentTier.level),
-      }));
-    }
+    setState((prev) => {
+      if (prev.tapLevel !== currentTier.level) {
+        if (currentTier.level > prev.tapLevel) {
+          soundFx.playLevelUp();
+        }
+        return {
+          ...prev,
+          tapLevel: currentTier.level,
+        };
+      }
+      return prev;
+    });
   }, [state.totalEarned]);
 
   const isTurboActive = state.turboActiveUntil > Date.now();
 
-  // Core Tap Handler
-  const handleTap = (clientX: number, clientY: number) => {
-    if (state.energy <= 0) return;
+  // Core High-Performance Multi-Tap Handler:
+  // - Start point is level 0. Every tap is 1 point (or user's leveled tap rate).
+  // - 1 tap is strictly -1 from energy.
+  // - Double-tap prevention ensures exact 1:1 attribution.
+  const handleMultiTap = (touches: { clientX: number; clientY: number }[]) => {
+    if (touches.length === 0) return;
+    lastTapTimeRef.current = Date.now();
 
-    // Check critical strike
-    const isCrit = Math.random() < state.critChance;
-    const critMultiplier = isCrit ? 5 : 1;
-    const turboMultiplier = isTurboActive ? 5 : 1;
-    const tapYield = state.tapPower * critMultiplier * turboMultiplier;
+    setState((prev) => {
+      if (prev.energy <= 0) return prev;
 
-    // Play tap sound & haptics
-    soundFx.playTap(isCrit);
-    if (state.hapticsEnabled) {
-      soundFx.triggerHaptic();
-    }
+      // Each tap strictly costs 1 energy up to current energy cap
+      const tapsToExecute = Math.min(touches.length, prev.energy);
+      if (tapsToExecute <= 0) return prev;
 
-    // Add floating number
-    const newId = Date.now() + Math.random();
-    setFloatingNumbers((prev) => [
-      ...prev,
-      { id: newId, x: clientX, y: clientY, amount: tapYield, isCrit },
-    ]);
+      const now = Date.now();
+      const isTurbo = prev.turboActiveUntil > now;
+      let totalYield = 0;
+      const newFloating: FloatingTapNumber[] = [];
 
-    setTimeout(() => {
-      setFloatingNumbers((prev) => prev.filter((item) => item.id !== newId));
-    }, 750);
+      for (let i = 0; i < tapsToExecute; i++) {
+        // Every tap 1 point base (multiplied by turbo if active, and scales with tap rate upgrade)
+        const tapYield = isTurbo ? prev.tapPower * 5 : prev.tapPower;
+        totalYield += tapYield;
 
-    // Update state: Add coins & reduce stamina
-    setState((prev) => ({
-      ...prev,
-      coins: prev.coins + tapYield,
-      totalEarned: prev.totalEarned + tapYield,
-      totalTaps: prev.totalTaps + 1,
-      energy: Math.max(0, prev.energy - 1),
-      lastEnergyTimestamp: Date.now(),
-    }));
+        soundFx.playTap(false);
+
+        newFloating.push({
+          id: now + i + Math.random(),
+          x: touches[i].clientX,
+          y: touches[i].clientY,
+          amount: tapYield,
+          isCrit: false,
+        });
+      }
+
+      if (prev.hapticsEnabled) {
+        soundFx.triggerHaptic();
+      }
+
+      // Keep recent floating indicators without memory buildup
+      setFloatingNumbers((curr) => [...curr.slice(-10), ...newFloating]);
+
+      setTimeout(() => {
+        const idsToRemove = new Set(newFloating.map((f) => f.id));
+        setFloatingNumbers((curr) => curr.filter((f) => !idsToRemove.has(f.id)));
+      }, 700);
+
+      // Instantaneous state update: coins increase by tap points and energy drops -1 per tap
+      return {
+        ...prev,
+        coins: prev.coins + totalYield,
+        totalEarned: prev.totalEarned + totalYield,
+        totalTaps: prev.totalTaps + tapsToExecute,
+        energy: Math.max(0, prev.energy - tapsToExecute),
+        lastEnergyTimestamp: now,
+      };
+    });
   };
 
   // Card Upgrade Handler (Mine Tab)
+  // Tap rate leveling cost is in thousands of points, starting at 8,000 and randomly increasing
   const handleUpgradeCard = (card: MineCard, cost: number) => {
     if (state.coins < cost) return;
 
@@ -140,11 +173,9 @@ export default function App() {
       let updatedEnergy = prev.energy;
       let updatedRecharge = prev.energyRechargeRate;
       let updatedCrit = prev.critChance;
-      let updatedTapLevel = prev.tapLevel;
 
       if (card.effectType === 'tap_power') {
         updatedTapPower += card.effectValue;
-        updatedTapLevel += 1; // upgrading tap power directly levels up the user!
       } else if (card.effectType === 'max_energy') {
         updatedMaxEnergy += card.effectValue;
         updatedEnergy = Math.min(updatedMaxEnergy, updatedEnergy + card.effectValue);
@@ -158,7 +189,6 @@ export default function App() {
         ...prev,
         coins: prev.coins - cost,
         tapPower: updatedTapPower,
-        tapLevel: updatedTapLevel,
         maxEnergy: updatedMaxEnergy,
         energy: updatedEnergy,
         energyRechargeRate: updatedRecharge,
@@ -221,24 +251,40 @@ export default function App() {
     }));
   };
 
-  // Boosters
-  const handleUseFullEnergy = () => {
-    if (state.fullEnergyRemaining <= 0) return;
-    setState((prev) => ({
-      ...prev,
-      energy: prev.maxEnergy,
-      fullEnergyRemaining: prev.fullEnergyRemaining - 1,
-    }));
+  // Boosters: all costs/charges are strictly in thousands of points
+  const handleBuyFullEnergy = (cost: number) => {
+    setState((prev) => {
+      if (prev.coins < cost) return prev;
+      return {
+        ...prev,
+        coins: prev.coins - cost,
+        energy: prev.maxEnergy,
+      };
+    });
   };
 
-  const handleActivateTurbo = () => {
-    if (state.turboRemainingToday <= 0) return;
-    setState((prev) => ({
-      ...prev,
-      turboActiveUntil: Date.now() + 20000,
-      turboRemainingToday: prev.turboRemainingToday - 1,
-    }));
+  const handleBuyTurbo = (cost: number) => {
+    setState((prev) => {
+      if (prev.coins < cost) return prev;
+      return {
+        ...prev,
+        coins: prev.coins - cost,
+        turboActiveUntil: Date.now() + 20000,
+      };
+    });
     setShowBoost(false);
+  };
+
+  const handleBuyEnergyTank = (cost: number) => {
+    setState((prev) => {
+      if (prev.coins < cost) return prev;
+      return {
+        ...prev,
+        coins: prev.coins - cost,
+        maxEnergy: prev.maxEnergy + 500,
+        energy: prev.energy + 500,
+      };
+    });
   };
 
   // Web3 Wallet
@@ -303,7 +349,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0e14] text-slate-100 flex flex-col justify-between max-w-lg mx-auto relative overflow-x-hidden">
+    <div className="h-[100dvh] max-h-[100dvh] w-full max-w-md mx-auto bg-[#0b0e14] text-slate-100 flex flex-col justify-between relative overflow-hidden">
       {/* Top Fixed Header */}
       <Header
         coins={state.coins}
@@ -319,7 +365,7 @@ export default function App() {
       />
 
       {/* Main Tab Content */}
-      <main className="flex-1 w-full flex flex-col">
+      <main className="flex-1 w-full flex flex-col overflow-hidden min-h-0 relative">
         {activeTab === 'exchange' && (
           <TapExchange
             coins={state.coins}
@@ -331,7 +377,7 @@ export default function App() {
             cipherSolvedToday={state.cipherSolvedToday}
             comboSolvedToday={state.comboSolvedToday}
             isTurboActive={isTurboActive}
-            onTap={handleTap}
+            onMultiTap={handleMultiTap}
             floatingNumbers={floatingNumbers}
             onOpenDailyReward={() => setShowDailyReward(true)}
             onOpenDailyCipher={() => setShowDailyCipher(true)}
@@ -343,51 +389,59 @@ export default function App() {
         )}
 
         {activeTab === 'mine' && (
-          <MineTab
-            coins={state.coins}
-            tapPower={state.tapPower}
-            tapLevel={state.tapLevel}
-            maxEnergy={state.maxEnergy}
-            critChance={state.critChance}
-            mineCardLevels={state.mineCardLevels}
-            onUpgradeCard={handleUpgradeCard}
-            goldCoinImg={goldCoin}
-          />
+          <div className="h-full overflow-y-auto overscroll-contain">
+            <MineTab
+              coins={state.coins}
+              tapPower={state.tapPower}
+              tapLevel={state.tapLevel}
+              maxEnergy={state.maxEnergy}
+              critChance={state.critChance}
+              mineCardLevels={state.mineCardLevels}
+              onUpgradeCard={handleUpgradeCard}
+              goldCoinImg={goldCoin}
+            />
+          </div>
         )}
 
         {activeTab === 'friends' && (
-          <FriendsTab
-            squadMembers={state.squadMembers}
-            squadEarnings={state.squadEarnings}
-            referralCode={state.referralCode}
-            onSimulateInvite={handleSimulateInvite}
-            goldCoinImg={goldCoin}
-          />
+          <div className="h-full overflow-y-auto overscroll-contain">
+            <FriendsTab
+              squadMembers={state.squadMembers}
+              squadEarnings={state.squadEarnings}
+              referralCode={state.referralCode}
+              onSimulateInvite={handleSimulateInvite}
+              goldCoinImg={goldCoin}
+            />
+          </div>
         )}
 
         {activeTab === 'earn' && (
-          <EarnTab
-            completedTaskIds={state.completedTaskIds}
-            streakDay={state.streakDay}
-            onCompleteTask={handleCompleteTask}
-            onOpenDailyReward={() => setShowDailyReward(true)}
-            goldCoinImg={goldCoin}
-          />
+          <div className="h-full overflow-y-auto overscroll-contain">
+            <EarnTab
+              completedTaskIds={state.completedTaskIds}
+              streakDay={state.streakDay}
+              onCompleteTask={handleCompleteTask}
+              onOpenDailyReward={() => setShowDailyReward(true)}
+              goldCoinImg={goldCoin}
+            />
+          </div>
         )}
 
         {activeTab === 'airdrop' && (
-          <AirdropTab
-            walletConnected={state.walletConnected}
-            walletAddress={state.walletAddress}
-            walletProvider={state.walletProvider}
-            coins={state.coins}
-            totalEarned={state.totalEarned}
-            tapLevel={state.tapLevel}
-            totalTaps={state.totalTaps}
-            squadCount={state.squadMembers.length}
-            onOpenWallet={() => setShowWallet(true)}
-            goldCoinImg={goldCoin}
-          />
+          <div className="h-full overflow-y-auto overscroll-contain">
+            <AirdropTab
+              walletConnected={state.walletConnected}
+              walletAddress={state.walletAddress}
+              walletProvider={state.walletProvider}
+              coins={state.coins}
+              totalEarned={state.totalEarned}
+              tapLevel={state.tapLevel}
+              totalTaps={state.totalTaps}
+              squadCount={state.squadMembers.length}
+              onOpenWallet={() => setShowWallet(true)}
+              goldCoinImg={goldCoin}
+            />
+          </div>
         )}
       </main>
 
@@ -428,13 +482,13 @@ export default function App() {
       <BoostModal
         isOpen={showBoost}
         onClose={() => setShowBoost(false)}
-        fullEnergyRemaining={state.fullEnergyRemaining}
-        turboRemaining={state.turboRemainingToday}
         isTurboActive={isTurboActive}
-        onUseFullEnergy={handleUseFullEnergy}
-        onActivateTurbo={handleActivateTurbo}
+        onBuyFullEnergy={handleBuyFullEnergy}
+        onBuyTurbo={handleBuyTurbo}
+        onBuyEnergyTank={handleBuyEnergyTank}
         onNavigateToMine={() => setActiveTab('mine')}
         coins={state.coins}
+        goldCoinImg={goldCoin}
       />
 
       <ConnectWalletModal

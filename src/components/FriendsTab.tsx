@@ -42,7 +42,7 @@ export const FriendsTab: React.FC<FriendsTabProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-130px)] px-4 pb-24 max-w-md mx-auto select-none">
+    <div className="flex flex-col px-3.5 pt-2 pb-20 max-w-md mx-auto select-none">
       {/* Top Header Badge & Text */}
       <div className="flex flex-col items-center text-center mt-3 mb-4">
         <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mb-3 shadow-[0_0_20px_rgba(251,191,36,0.2)]">

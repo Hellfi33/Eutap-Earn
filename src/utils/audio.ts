@@ -14,8 +14,15 @@ class SoundController {
     }
   }
 
+  private lastTapAudioTime = 0;
+
   playTap(isCrit = false) {
     if (!this.enabled) return;
+    const now = Date.now();
+    // Throttle audio creation to avoid audio buffer saturation during ultra-fast multi-tapping
+    if (now - this.lastTapAudioTime < 35 && !isCrit) return;
+    this.lastTapAudioTime = now;
+
     try {
       this.initContext();
       if (!this.ctx) return;
@@ -26,16 +33,16 @@ class SoundController {
       const baseFreq = isCrit ? 880 : 440 + Math.random() * 80;
       osc.type = isCrit ? 'triangle' : 'sine';
       osc.frequency.setValueAtTime(baseFreq, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, this.ctx.currentTime + 0.08);
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, this.ctx.currentTime + 0.05);
 
-      gain.gain.setValueAtTime(isCrit ? 0.3 : 0.15, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.09);
+      gain.gain.setValueAtTime(isCrit ? 0.25 : 0.12, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.06);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
       osc.start();
-      osc.stop(this.ctx.currentTime + 0.09);
+      osc.stop(this.ctx.currentTime + 0.06);
     } catch {
       // Audio playback fails gracefully if muted by browser
     }

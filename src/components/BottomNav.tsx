@@ -44,8 +44,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0c1017]/95 backdrop-blur-md border-t border-white/10 pb-2 pt-1.5 px-3">
-      <div className="max-w-md mx-auto grid grid-cols-5 gap-1">
+    <nav className="w-full shrink-0 z-40 bg-[#0c1017]/95 backdrop-blur-md border-t border-white/10 pb-[env(safe-area-inset-bottom,6px)] pt-1 px-1.5">
+      <div className="w-full grid grid-cols-5 gap-1">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -56,7 +56,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 soundFx.playClick();
                 onTabChange(tab.id);
               }}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl transition-all ${
+              className={`relative flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all ${
                 isActive
                   ? 'text-amber-400 bg-white/5'
                   : 'text-slate-400 hover:text-slate-200'
@@ -64,13 +64,13 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             >
               {/* Active top indicator pill */}
               {isActive && (
-                <div className="absolute top-0 w-8 h-0.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                <div className="absolute top-0 w-7 h-0.5 bg-amber-400 rounded-full shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
               )}
 
-              <div className="h-6 flex items-center justify-center mb-0.5">
+              <div className="h-5 sm:h-6 flex items-center justify-center mb-0.5">
                 {tab.id === 'exchange' ? (
                   <span
-                    className={`text-[10px] font-black tracking-wider px-1.5 py-0.5 rounded border transition ${
+                    className={`text-[9px] sm:text-[10px] font-black tracking-wider px-1.5 py-0.2 rounded border transition ${
                       isActive
                         ? 'border-amber-400/60 bg-amber-400/15 text-amber-300'
                         : 'border-white/15 bg-white/5 text-slate-400'
@@ -84,7 +84,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                       src={goldCoinImg}
                       alt="Airdrop"
                       referrerPolicy="no-referrer"
-                      className={`w-5 h-5 rounded-full object-cover transition ${
+                      className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover transition ${
                         isActive ? 'ring-2 ring-amber-400 ring-offset-1 ring-offset-[#0c1017]' : 'opacity-70'
                       }`}
                     />
@@ -94,7 +94,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 )}
               </div>
 
-              <span className={`text-[11px] font-medium tracking-tight ${isActive ? 'font-bold' : ''}`}>
+              <span className={`text-[10px] sm:text-[11px] leading-none whitespace-nowrap tracking-tight ${isActive ? 'font-bold' : 'font-medium'}`}>
                 {tab.label}
               </span>
             </button>
