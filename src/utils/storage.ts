@@ -68,6 +68,10 @@ export function loadGameState(): GameState {
       Math.floor(previousEnergy + elapsedSeconds * rechargePerSec)
     );
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isNewCipherDay = parsed.lastCipherDate && parsed.lastCipherDate !== todayStr;
+    const todayCipherWord = getDailyCipherWord(todayStr);
+
     return {
       ...INITIAL_STATE,
       ...parsed,
@@ -77,7 +81,8 @@ export function loadGameState(): GameState {
       diamonds: typeof parsed.diamonds === 'number' ? parsed.diamonds : 0,
       energy: restoredEnergy,
       lastEnergyTimestamp: now,
-      cipherWord: parsed.cipherWord || getDailyCipherWord(),
+      cipherWord: todayCipherWord,
+      cipherSolvedToday: isNewCipherDay ? false : Boolean(parsed.cipherSolvedToday),
     };
   } catch {
     return INITIAL_STATE;

@@ -8,6 +8,7 @@ import { GameState, FloatingTapNumber, MineCard } from './types';
 import { loadGameState, saveGameState, resetGameState } from './utils/storage';
 import { soundFx } from './utils/audio';
 import { getTierByCoins } from './data/tiers';
+import { getDailyCipherWord } from './data/ciphers';
 
 // Assets
 import mascotAvatar from './assets/images/eutap_mascot_avatar_1788588061680.jpg';
@@ -73,6 +74,31 @@ export default function App() {
     }, 1000);
 
     return () => clearInterval(timer);
+  }, []);
+
+  // 24-Hour Automatic Daily Cipher Cycle:
+  // Automatically rotates to today's date-seeded cipher word and resets solved status every 24 hours.
+  useEffect(() => {
+    const checkDailyCipherReset = () => {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayWord = getDailyCipherWord(todayStr);
+
+      setState((prev) => {
+        const isNewDay = prev.lastCipherDate && prev.lastCipherDate !== todayStr;
+        if (isNewDay || prev.cipherWord !== todayWord) {
+          return {
+            ...prev,
+            cipherWord: todayWord,
+            cipherSolvedToday: isNewDay ? false : prev.cipherSolvedToday,
+          };
+        }
+        return prev;
+      });
+    };
+
+    checkDailyCipherReset();
+    const interval = setInterval(checkDailyCipherReset, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // 20-Level Progression Check & Tap Cap Level Transition:
@@ -492,13 +518,6 @@ export default function App() {
         cipherWord={state.cipherWord}
         cipherSolvedToday={state.cipherSolvedToday}
         onSolveCipher={handleSolveCipher}
-        onNewCipherWord={(newWord) =>
-          setState((prev) => ({
-            ...prev,
-            cipherWord: newWord,
-            cipherSolvedToday: false,
-          }))
-        }
         goldCoinImg={goldCoin}
       />
 

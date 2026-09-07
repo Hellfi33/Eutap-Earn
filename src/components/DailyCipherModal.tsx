@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Key, Check, HelpCircle, Delete, RefreshCw } from 'lucide-react';
+import { X, Key, Check, HelpCircle, Delete, Clock } from 'lucide-react';
 import { soundFx } from '../utils/audio';
-import { MORSE_MAP, generateNewCipherWord, getWordMorse } from '../data/ciphers';
+import { MORSE_MAP, getWordMorse, getDailyCipherCountdown } from '../data/ciphers';
 
 interface DailyCipherModalProps {
   isOpen: boolean;
@@ -9,7 +9,6 @@ interface DailyCipherModalProps {
   cipherWord: string;
   cipherSolvedToday: boolean;
   onSolveCipher: (reward: number) => void;
-  onNewCipherWord?: (newWord: string) => void;
   goldCoinImg: string;
 }
 
@@ -19,7 +18,6 @@ export const DailyCipherModal: React.FC<DailyCipherModalProps> = ({
   cipherWord,
   cipherSolvedToday,
   onSolveCipher,
-  onNewCipherWord,
   goldCoinImg,
 }) => {
   if (!isOpen) return null;
@@ -30,6 +28,15 @@ export const DailyCipherModal: React.FC<DailyCipherModalProps> = ({
   );
   const [currentMorse, setCurrentMorse] = useState<string>('');
   const [feedback, setFeedback] = useState<string>('');
+  const [countdown, setCountdown] = useState<string>(getDailyCipherCountdown());
+
+  // 24hrs ticking countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown(getDailyCipherCountdown());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Synchronize when cipherWord changes
   useEffect(() => {
@@ -79,18 +86,6 @@ export const DailyCipherModal: React.FC<DailyCipherModalProps> = ({
     setFeedback('');
   };
 
-  // Automatically generates a new cipher decoder
-  const handleAutoGenerateNewCipher = () => {
-    soundFx.playClick();
-    const newWord = generateNewCipherWord(cipherWord);
-    if (onNewCipherWord) {
-      onNewCipherWord(newWord);
-    }
-    setSolvedLetters([]);
-    setCurrentMorse('');
-    setFeedback(`New cipher decoder activated: "${newWord}"`);
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
       <div className="bg-[#141923] border border-white/10 rounded-3xl w-full max-w-sm p-5 shadow-2xl flex flex-col relative max-h-[92vh] overflow-y-auto">
@@ -123,18 +118,15 @@ export const DailyCipherModal: React.FC<DailyCipherModalProps> = ({
           Input the Morse Code signal for today's secret word to decode the cipher and claim the 200,000 points reward.
         </p>
 
-        {/* Decoder Header & Auto-Generate Button */}
+        {/* Decoder Header with 24hrs Ticking Countdown */}
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-bold text-purple-300 uppercase tracking-wider">
             Secret Cipher Word
           </span>
-          <button
-            onClick={handleAutoGenerateNewCipher}
-            className="flex items-center gap-1 text-[10px] font-bold text-purple-400 hover:text-purple-300 bg-purple-500/10 hover:bg-purple-500/20 px-2 py-1 rounded-lg border border-purple-500/30 transition active:scale-95"
-          >
-            <RefreshCw className="w-3 h-3" />
-            <span>Generate New Decoder</span>
-          </button>
+          <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-purple-300 bg-purple-950/60 border border-purple-500/30 px-2.5 py-1 rounded-lg">
+            <Clock className="w-3 h-3 text-purple-400 animate-pulse" />
+            <span>Resets in: {countdown}</span>
+          </div>
         </div>
 
         {/* Target Word Letters Display */}
@@ -205,16 +197,23 @@ export const DailyCipherModal: React.FC<DailyCipherModalProps> = ({
             </button>
           </div>
         ) : (
-          <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 flex flex-col items-center justify-center text-center">
-            <Check className="w-7 h-7 text-emerald-400 mb-1" />
+          <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 flex flex-col items-center justify-center text-center">
+            <Check className="w-8 h-8 text-emerald-400 mb-1" />
             <h4 className="text-sm font-bold text-white">Daily Cipher Solved!</h4>
-            <p className="text-xs text-emerald-300 mt-0.5">+200,000 coins claimed.</p>
-            <button
-              onClick={handleAutoGenerateNewCipher}
-              className="mt-2.5 px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition"
-            >
-              Generate Next Cipher Decoder
-            </button>
+            <p className="text-xs text-emerald-300 mt-0.5 font-medium">+200,000 coins claimed.</p>
+            
+            <div className="mt-3.5 pt-3 border-t border-emerald-500/20 w-full flex flex-col items-center">
+              <div className="flex items-center gap-1.5 text-xs text-purple-300 font-semibold mb-1">
+                <Clock className="w-3.5 h-3.5 text-purple-400" />
+                <span>Next Cipher Available In</span>
+              </div>
+              <div className="text-lg font-mono font-black text-amber-300 tracking-wider">
+                {countdown}
+              </div>
+              <span className="text-[10px] text-slate-400 mt-1">
+                Every 24 hours, you are allowed to participate in the new cipher.
+              </span>
+            </div>
           </div>
         )}
 

@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Calendar, Key, Layers, ChevronRight, Zap, Flame } from 'lucide-react';
 import { FloatingTapNumber } from '../types';
 import { soundFx } from '../utils/audio';
 import { formatMilTapPoints, formatTapCap } from '../data/tiers';
+import { getDailyCipherCountdown } from '../data/ciphers';
 
 interface TapExchangeProps {
   coins: number;
@@ -51,6 +52,14 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
   const [isPressing, setIsPressing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastTouchTimeRef = useRef<number>(0);
+  const [cipherCountdown, setCipherCountdown] = useState<string>(getDailyCipherCountdown());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCipherCountdown(getDailyCipherCountdown());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Multi-touch handler for fast finger tapping
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -161,13 +170,19 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
           </div>
           <span className="text-[10px] sm:text-[11px] font-semibold text-slate-200 leading-tight">Daily cipher</span>
           <div className="flex items-center gap-1 mt-0.5">
-            <img
-              src={goldCoinImg}
-              alt=""
-              referrerPolicy="no-referrer"
-              className="w-3 h-3 rounded-full"
-            />
-            <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold">200,000</span>
+            {cipherSolvedToday ? (
+              <span className="text-[9px] sm:text-[10px] text-emerald-400 font-mono font-bold">{cipherCountdown}</span>
+            ) : (
+              <>
+                <img
+                  src={goldCoinImg}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="w-3 h-3 rounded-full"
+                />
+                <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold">200,000</span>
+              </>
+            )}
           </div>
         </button>
 
@@ -294,9 +309,9 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
           <div className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
           <span className="text-xs sm:text-sm font-semibold text-slate-200">Daily cipher</span>
         </div>
-        <div className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-purple-400">
-          <span>{cipherSolvedToday ? 'SOLVED ✓' : 'DECODE NOW'}</span>
-          <ChevronRight className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-mono font-bold text-purple-400">
+          <span>{cipherSolvedToday ? `SOLVED • RESET IN ${cipherCountdown}` : `DECODE NOW • ${cipherCountdown}`}</span>
+          <ChevronRight className="w-3.5 h-3.5 text-purple-400" />
         </div>
       </button>
 

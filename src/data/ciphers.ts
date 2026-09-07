@@ -73,11 +73,21 @@ export function getDailyCipherWord(dateStr?: string): string {
   return CIPHER_WORD_POOL[index];
 }
 
-// Automatically generates a new cipher word distinct from the current one
-export function generateNewCipherWord(currentWord?: string): string {
-  const available = CIPHER_WORD_POOL.filter((w) => w !== currentWord);
-  const randomIndex = Math.floor(Math.random() * available.length);
-  return available[randomIndex] || 'EUTAP';
+// Returns the live 24hrs ticking countdown until the next daily cipher rotation (00:00 UTC)
+export function getDailyCipherCountdown(): string {
+  const now = new Date();
+  const nextReset = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + 1,
+    0, 0, 0, 0
+  ));
+  const diffMs = Math.max(0, nextReset.getTime() - now.getTime());
+  const totalSeconds = Math.floor(diffMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 // Returns the Morse representation for an entire word separated by slashes
