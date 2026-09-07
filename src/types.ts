@@ -61,6 +61,10 @@ export interface GameState {
   lastEnergyTimestamp: number;
   critChance: number; // e.g., 0.05
   
+  // Reserves and Special Currency
+  reserveBalance: number; // $80.00 base reserve balance for every player
+  diamonds: number; // Diamonds currency earned by player
+
   // Daily Streak
   streakDay: number;
   lastClaimDate: string | null;

@@ -39,3 +39,22 @@ export function formatCompactNumber(num: number): string {
   if (num >= 1e3) return (num / 1e3).toFixed(1).replace(/\.0$/, '') + 'K';
   return num.toLocaleString();
 }
+
+// Formats tap points specifically for the top reserve metrics panel:
+// "The tap points is recorded there only when taps reach million, billion, trillion, and in M, B, T (e.g, 25B)"
+// "If user taps hasn't reached this, it doesn't count there but down the main place."
+export function formatMilTapPoints(points: number): string {
+  if (!points || points < 1_000_000) {
+    return '0';
+  }
+  if (points >= 1e12) {
+    const val = points / 1e12;
+    return (val >= 10 || val % 1 === 0 ? Math.floor(val) : val.toFixed(1).replace(/\.0$/, '')) + 'T';
+  }
+  if (points >= 1e9) {
+    const val = points / 1e9;
+    return (val >= 10 || val % 1 === 0 ? Math.floor(val) : val.toFixed(1).replace(/\.0$/, '')) + 'B';
+  }
+  const val = points / 1e6;
+  return (val >= 10 || val % 1 === 0 ? Math.floor(val) : val.toFixed(1).replace(/\.0$/, '')) + 'M';
+}

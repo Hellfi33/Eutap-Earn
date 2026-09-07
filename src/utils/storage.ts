@@ -13,6 +13,8 @@ export const INITIAL_STATE: GameState = {
   energyRechargeRate: 1,
   lastEnergyTimestamp: Date.now(),
   critChance: 0.02,
+  reserveBalance: 80.00,
+  diamonds: 0,
 
   streakDay: 0,
   lastClaimDate: null,
@@ -61,6 +63,8 @@ export function loadGameState(): GameState {
     return {
       ...INITIAL_STATE,
       ...parsed,
+      reserveBalance: typeof parsed.reserveBalance === 'number' ? parsed.reserveBalance : 80.00,
+      diamonds: typeof parsed.diamonds === 'number' ? parsed.diamonds : 0,
       energy: restoredEnergy,
       lastEnergyTimestamp: now,
     };

@@ -217,10 +217,12 @@ export default function App() {
   // Daily Streak Claim
   const handleClaimDailyStreak = (day: number, reward: number) => {
     const todayStr = new Date().toISOString().split('T')[0];
+    const diamondGain = day >= 10 ? 25 : day >= 5 ? 5 : 0;
     setState((prev) => ({
       ...prev,
       coins: prev.coins + reward,
       totalEarned: prev.totalEarned + reward,
+      diamonds: prev.diamonds + diamondGain,
       streakDay: day,
       lastClaimDate: todayStr,
     }));
@@ -234,6 +236,7 @@ export default function App() {
       ...prev,
       coins: prev.coins + reward,
       totalEarned: prev.totalEarned + reward,
+      diamonds: prev.diamonds + 5,
       cipherSolvedToday: true,
       lastCipherDate: todayStr,
     }));
@@ -246,6 +249,7 @@ export default function App() {
       ...prev,
       coins: prev.coins + reward,
       totalEarned: prev.totalEarned + reward,
+      diamonds: prev.diamonds + 10,
       comboSolvedToday: true,
       lastComboDate: todayStr,
     }));
@@ -336,6 +340,7 @@ export default function App() {
       ...prev,
       coins: prev.coins + bonus,
       totalEarned: prev.totalEarned + bonus,
+      diamonds: prev.diamonds + (isPremium ? 10 : 3),
       squadEarnings: prev.squadEarnings + bonus,
       squadMembers: [newMember, ...prev.squadMembers],
     }));
@@ -369,6 +374,8 @@ export default function App() {
         {activeTab === 'exchange' && (
           <TapExchange
             coins={state.coins}
+            reserveBalance={state.reserveBalance}
+            diamonds={state.diamonds}
             energy={state.energy}
             maxEnergy={state.maxEnergy}
             tapPower={state.tapPower}

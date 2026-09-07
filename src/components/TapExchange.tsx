@@ -2,9 +2,12 @@ import React, { useState, useRef } from 'react';
 import { Calendar, Key, Layers, ChevronRight, Zap, Flame } from 'lucide-react';
 import { FloatingTapNumber } from '../types';
 import { soundFx } from '../utils/audio';
+import { formatMilTapPoints } from '../data/tiers';
 
 interface TapExchangeProps {
   coins: number;
+  reserveBalance: number;
+  diamonds: number;
   energy: number;
   maxEnergy: number;
   tapPower: number;
@@ -25,6 +28,8 @@ interface TapExchangeProps {
 
 export const TapExchange: React.FC<TapExchangeProps> = ({
   coins,
+  reserveBalance,
+  diamonds,
   energy,
   maxEnergy,
   tapPower,
@@ -188,6 +193,65 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
             {comboSolvedToday ? 'Claimed ✓' : '5,000,000'}
           </span>
         </button>
+      </div>
+
+      {/* Attached 3-Pill Metrics Dock (Directly under Daily rewards, cipher and combo) */}
+      <div
+        id="reserve-metrics-panel"
+        className="w-full max-w-sm bg-[#090d15] border border-white/10 rounded-2xl p-1 sm:p-1.5 mt-1.5 shrink-0 shadow-lg"
+      >
+        <div className="grid grid-cols-3 gap-1.5">
+          {/* ₮ TAP POINTS */}
+          <div
+            id="panel-tap-points"
+            className="bg-[#131926] border border-white/5 rounded-xl py-2 px-1 flex flex-col items-center justify-center text-center select-none"
+          >
+            <div className="flex items-center justify-center gap-1 text-[#f59e0b] font-bold text-[10px] sm:text-[11px] tracking-wide font-['Rajdhani',sans-serif] leading-tight">
+              <span className="text-[11px] sm:text-[12px] font-black">₮</span>
+              <span>TAP POINTS</span>
+            </div>
+            <span
+              id="reserves-tap-points-val"
+              className="text-white font-extrabold text-sm sm:text-base font-['Rajdhani',sans-serif] mt-0.5 tracking-tight"
+            >
+              {formatMilTapPoints(coins)}
+            </span>
+          </div>
+
+          {/* $ RESERVES */}
+          <div
+            id="panel-reserves"
+            className="bg-[#131926] border border-white/5 rounded-xl py-2 px-1 flex flex-col items-center justify-center text-center select-none"
+          >
+            <div className="flex items-center justify-center gap-1 text-[#10b981] font-bold text-[10px] sm:text-[11px] tracking-wide font-['Rajdhani',sans-serif] leading-tight">
+              <span className="text-[11px] sm:text-[12px] font-black">$</span>
+              <span>RESERVES</span>
+            </div>
+            <span
+              id="reserves-balance-val"
+              className="text-[#34d399] font-extrabold text-sm sm:text-base font-['Rajdhani',sans-serif] mt-0.5 tracking-tight"
+            >
+              ${reserveBalance.toFixed(2)}
+            </span>
+          </div>
+
+          {/* 💎 DIAMONDS */}
+          <div
+            id="panel-diamonds"
+            className="bg-[#131926] border border-white/5 rounded-xl py-2 px-1 flex flex-col items-center justify-center text-center select-none"
+          >
+            <div className="flex items-center justify-center gap-1 text-[#38bdf8] font-bold text-[10px] sm:text-[11px] tracking-wide font-['Rajdhani',sans-serif] leading-tight">
+              <span className="text-[11px] sm:text-[12px]">💎</span>
+              <span>DIAMONDS</span>
+            </div>
+            <span
+              id="reserves-diamonds-val"
+              className="text-white font-extrabold text-sm sm:text-base font-['Rajdhani',sans-serif] mt-0.5 tracking-tight"
+            >
+              {diamonds.toLocaleString()}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Main Balance Display */}
