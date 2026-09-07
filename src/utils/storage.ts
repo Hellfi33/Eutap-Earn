@@ -1,4 +1,6 @@
 import { GameState } from '../types';
+import { getTierByCoins, getLevelTapCap } from '../data/tiers';
+import { getDailyCipherWord } from '../data/ciphers';
 
 const STORAGE_KEY = 'eutap_game_state_v1';
 
@@ -8,8 +10,8 @@ export const INITIAL_STATE: GameState = {
   totalTaps: 0,
   tapLevel: 0,
   tapPower: 1,
-  energy: 1000,
-  maxEnergy: 1000,
+  energy: 100000,
+  maxEnergy: 100000,
   energyRechargeRate: 1,
   lastEnergyTimestamp: Date.now(),
   critChance: 0.02,
@@ -19,7 +21,7 @@ export const INITIAL_STATE: GameState = {
   streakDay: 0,
   lastClaimDate: null,
 
-  cipherWord: 'EUTAP',
+  cipherWord: getDailyCipherWord(),
   cipherSolvedToday: false,
   lastCipherDate: null,
 
@@ -51,22 +53,31 @@ export function loadGameState(): GameState {
     if (!saved) return INITIAL_STATE;
     const parsed = JSON.parse(saved);
     
-    // Calculate stamina/energy regeneration between app visits, capped at maxEnergy
-    // Note: This only restores energy (stamina), NEVER adds coins, adhering strictly to user requirement
+    // Determine level tap cap according to player's tier
+    const currentTier = getTierByCoins(parsed.totalEarned || 0);
+    const markedCap = getLevelTapCap(currentTier.level);
+    const targetMaxEnergy = Math.max(parsed.maxEnergy || 0, markedCap);
+
+    // Refill gently between visits without automating fast counting
     const now = Date.now();
     const elapsedSeconds = Math.max(0, (now - (parsed.lastEnergyTimestamp || now)) / 1000);
+    const rechargePerSec = parsed.energyRechargeRate || 1;
+    const previousEnergy = typeof parsed.energy === 'number' && parsed.energy >= 0 ? parsed.energy : targetMaxEnergy;
     const restoredEnergy = Math.min(
-      parsed.maxEnergy || 1000,
-      Math.floor((parsed.energy ?? 1000) + elapsedSeconds * (parsed.energyRechargeRate || 3))
+      targetMaxEnergy,
+      Math.floor(previousEnergy + elapsedSeconds * rechargePerSec)
     );
 
     return {
       ...INITIAL_STATE,
       ...parsed,
+      tapLevel: currentTier.level,
+      maxEnergy: targetMaxEnergy,
       reserveBalance: typeof parsed.reserveBalance === 'number' ? parsed.reserveBalance : 80.00,
       diamonds: typeof parsed.diamonds === 'number' ? parsed.diamonds : 0,
       energy: restoredEnergy,
       lastEnergyTimestamp: now,
+      cipherWord: parsed.cipherWord || getDailyCipherWord(),
     };
   } catch {
     return INITIAL_STATE;

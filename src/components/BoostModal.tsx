@@ -6,6 +6,8 @@ import { formatCompactNumber } from '../data/tiers';
 interface BoostModalProps {
   isOpen: boolean;
   onClose: () => void;
+  tapPower: number;
+  onUpgradeTapRate: (cost: number) => void;
   isTurboActive: boolean;
   onBuyFullEnergy: (cost: number) => void;
   onBuyTurbo: (cost: number) => void;
@@ -24,6 +26,8 @@ export const BOOST_COSTS = {
 export const BoostModal: React.FC<BoostModalProps> = ({
   isOpen,
   onClose,
+  tapPower,
+  onUpgradeTapRate,
   isTurboActive,
   onBuyFullEnergy,
   onBuyTurbo,
@@ -33,6 +37,9 @@ export const BoostModal: React.FC<BoostModalProps> = ({
   goldCoinImg,
 }) => {
   if (!isOpen) return null;
+
+  // Tap rate leveling cost starts at 8,000 points and scales with tapPower
+  const tapRateCost = Math.floor(8000 * Math.pow(1.85, Math.max(0, tapPower - 1)));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm">
@@ -66,6 +73,44 @@ export const BoostModal: React.FC<BoostModalProps> = ({
         </div>
 
         <div className="space-y-2 mb-3">
+          {/* Tap Rate Booster (Multitap +1, +5 depending) */}
+          <button
+            id="boost-tap-rate-btn"
+            disabled={coins < tapRateCost}
+            onClick={() => {
+              soundFx.playReward();
+              onUpgradeTapRate(tapRateCost);
+            }}
+            className={`w-full p-2.5 rounded-2xl border flex items-center justify-between transition ${
+              coins >= tapRateCost
+                ? 'bg-[#1a202c] hover:bg-[#222b3b] border-white/10 hover:border-amber-400/40 text-white shadow-sm'
+                : 'bg-white/5 border-white/5 text-slate-500 opacity-60 cursor-not-allowed'
+            }`}
+          >
+            <div className="flex items-center gap-2.5 text-left min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                <Zap className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-xs font-bold truncate">Tap Rate Booster</h4>
+                  <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-black">
+                    +{tapPower} / tap
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-400 block truncate">
+                  Upgrade to +{tapPower + 1} per tap (-{tapPower + 1} energy)
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/20">
+              <img src={goldCoinImg} alt="" className="w-3 h-3 rounded-full" referrerPolicy="no-referrer" />
+              <span className="text-[11px] font-bold text-amber-400">
+                {formatCompactNumber(tapRateCost)}
+              </span>
+            </div>
+          </button>
+
           {/* Full Energy Refuel */}
           <button
             id="boost-full-energy-btn"

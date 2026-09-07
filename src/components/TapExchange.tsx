@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Calendar, Key, Layers, ChevronRight, Zap, Flame } from 'lucide-react';
 import { FloatingTapNumber } from '../types';
 import { soundFx } from '../utils/audio';
-import { formatMilTapPoints } from '../data/tiers';
+import { formatMilTapPoints, formatTapCap } from '../data/tiers';
 
 interface TapExchangeProps {
   coins: number;
@@ -167,7 +167,7 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
               referrerPolicy="no-referrer"
               className="w-3 h-3 rounded-full"
             />
-            <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold">1,000,000</span>
+            <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold">200,000</span>
           </div>
         </button>
 
@@ -190,7 +190,7 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
           </div>
           <span className="text-[10px] sm:text-[11px] font-semibold text-slate-200 leading-tight">Daily combo</span>
           <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium mt-0.5">
-            {comboSolvedToday ? 'Claimed ✓' : '5,000,000'}
+            {comboSolvedToday ? 'Claimed ✓' : '200,000'}
           </span>
         </button>
       </div>
@@ -380,8 +380,8 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         <div className="flex items-center justify-between text-xs font-bold mb-1 px-1">
           <div className="flex items-center gap-1.5 text-amber-400">
             <Zap className="w-4 h-4 fill-amber-400 text-amber-400" />
-            <span className="text-xs sm:text-sm font-black text-white">{energy}</span>
-            <span className="text-slate-500 font-semibold">/ {maxEnergy}</span>
+            <span className="text-xs sm:text-sm font-black text-white">{formatTapCap(energy)}</span>
+            <span className="text-slate-500 font-semibold">/ {formatTapCap(maxEnergy)}</span>
           </div>
 
           <button

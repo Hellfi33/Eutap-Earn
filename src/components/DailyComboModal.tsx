@@ -43,7 +43,7 @@ export const DailyComboModal: React.FC<DailyComboModalProps> = ({
           if (isMatch) {
             soundFx.playReward();
             setTimeout(() => {
-              onSolveCombo(5000000);
+              onSolveCombo(200000);
             }, 600);
           }
         }
@@ -72,13 +72,13 @@ export const DailyComboModal: React.FC<DailyComboModalProps> = ({
             <h3 className="text-base font-bold text-white">Daily Combo</h3>
             <div className="flex items-center gap-1">
               <img src={goldCoinImg} alt="" referrerPolicy="no-referrer" className="w-3.5 h-3.5 rounded-full" />
-              <span className="text-xs font-bold text-amber-400">+5,000,000 Coins Jackpot</span>
+              <span className="text-xs font-bold text-amber-400">+200,000 Coins Jackpot</span>
             </div>
           </div>
         </div>
 
         <p className="text-xs text-slate-400 mb-4 leading-relaxed">
-          Select the 3 secret cards of the day to crack the combo and claim 5 million coins.
+          Select the 3 secret cards of the day to crack the combo and claim 200,000 coins.
         </p>
 
         {/* Selected 3 slots */}
@@ -113,7 +113,7 @@ export const DailyComboModal: React.FC<DailyComboModalProps> = ({
           <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 flex flex-col items-center justify-center text-center">
             <Check className="w-7 h-7 text-emerald-400 mb-1" />
             <h4 className="text-sm font-bold text-white">Daily Combo Claimed!</h4>
-            <p className="text-xs text-emerald-300 mt-0.5">+5,000,000 coins rewarded.</p>
+            <p className="text-xs text-emerald-300 mt-0.5">+200,000 coins rewarded.</p>
           </div>
         ) : (
           <div className="space-y-2">

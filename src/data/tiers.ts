@@ -58,3 +58,18 @@ export function formatMilTapPoints(points: number): string {
   const val = points / 1e6;
   return (val >= 10 || val % 1 === 0 ? Math.floor(val) : val.toFixed(1).replace(/\.0$/, '')) + 'M';
 }
+
+// Returns the marked tap capacity for each level:
+// Level 0: 100,000 taps; each new level is x3 of previous level (e.g., Level 5: 24,300,000 taps)
+export function getLevelTapCap(level: number): number {
+  const tier = TIERS.find((t) => t.level === level) || TIERS[0];
+  return tier.maxCoins;
+}
+
+// Formats energy/tap capacity values cleanly for the tap cap bar
+export function formatTapCap(num: number): string {
+  if (num >= 100_000_000) {
+    return formatCompactNumber(num);
+  }
+  return num.toLocaleString();
+}

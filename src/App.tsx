@@ -59,39 +59,40 @@ export default function App() {
   const lastTapTimeRef = useRef<number>(0);
 
   // ENERGY REFILL ENGINE:
-  // - 1 tap is -1 from energy refill, as fast as user taps.
-  // - Every hold (no tap for >= 500ms) increases energy refill (+1 per second).
+  // - Refills steadily by +1 every second, continuously reflecting in the energy bar, capped at maxEnergy.
   useEffect(() => {
     const timer = setInterval(() => {
-      const timeSinceLastTap = Date.now() - lastTapTimeRef.current;
-      // Refill only when the player holds without tapping
-      if (timeSinceLastTap >= 500) {
-        setState((prev) => {
-          if (prev.energy >= prev.maxEnergy) return prev;
-          return {
-            ...prev,
-            energy: Math.min(prev.maxEnergy, prev.energy + 1),
-            lastEnergyTimestamp: Date.now(),
-          };
-        });
-      }
+      setState((prev) => {
+        if (prev.energy >= prev.maxEnergy) return prev;
+        return {
+          ...prev,
+          energy: Math.min(prev.maxEnergy, prev.energy + 1),
+          lastEnergyTimestamp: Date.now(),
+        };
+      });
     }, 1000);
 
     return () => clearInterval(timer);
   }, []);
 
-  // 20-Level Progression Check:
+  // 20-Level Progression Check & Tap Cap Level Transition:
   // Level 0 is 100,000 tap points. Each new level is x3 of previous level.
+  // "This tap cap section transition (level up) according to level. Meaning, e.g if a player gets to level 5, the cap transitions to level 5 taps (which ever number is marked to the level)."
   useEffect(() => {
     const currentTier = getTierByCoins(state.totalEarned);
+    const markedCap = currentTier.maxCoins;
     setState((prev) => {
-      if (prev.tapLevel !== currentTier.level) {
-        if (currentTier.level > prev.tapLevel) {
-          soundFx.playLevelUp();
-        }
+      const isLevelUp = currentTier.level > prev.tapLevel;
+      if (isLevelUp) {
+        soundFx.playLevelUp();
+      }
+      if (prev.tapLevel !== currentTier.level || prev.maxEnergy < markedCap) {
+        const newMaxEnergy = Math.max(prev.maxEnergy, markedCap);
         return {
           ...prev,
           tapLevel: currentTier.level,
+          maxEnergy: newMaxEnergy,
+          energy: isLevelUp ? newMaxEnergy : Math.min(newMaxEnergy, prev.energy),
         };
       }
       return prev;
@@ -101,9 +102,8 @@ export default function App() {
   const isTurboActive = state.turboActiveUntil > Date.now();
 
   // Core High-Performance Multi-Tap Handler:
-  // - Start point is level 0. Every tap is 1 point (or user's leveled tap rate).
-  // - 1 tap is strictly -1 from energy.
-  // - Double-tap prevention ensures exact 1:1 attribution.
+  // - The attached section reduces according to the tap rate booster (+1, +5 depending).
+  // - Tap speed, deduction speed and point balance topup reflect instantaneously in the exact same state transaction.
   const handleMultiTap = (touches: { clientX: number; clientY: number }[]) => {
     if (touches.length === 0) return;
     lastTapTimeRef.current = Date.now();
@@ -111,19 +111,27 @@ export default function App() {
     setState((prev) => {
       if (prev.energy <= 0) return prev;
 
-      // Each tap strictly costs 1 energy up to current energy cap
-      const tapsToExecute = Math.min(touches.length, prev.energy);
-      if (tapsToExecute <= 0) return prev;
-
       const now = Date.now();
       const isTurbo = prev.turboActiveUntil > now;
+      const ratePerTap = isTurbo ? prev.tapPower * 5 : prev.tapPower;
+
+      let remainingEnergy = prev.energy;
       let totalYield = 0;
+      let totalDeduction = 0;
+      let tapsExecuted = 0;
       const newFloating: FloatingTapNumber[] = [];
 
-      for (let i = 0; i < tapsToExecute; i++) {
-        // Every tap 1 point base (multiplied by turbo if active, and scales with tap rate upgrade)
-        const tapYield = isTurbo ? prev.tapPower * 5 : prev.tapPower;
-        totalYield += tapYield;
+      for (let i = 0; i < touches.length; i++) {
+        if (remainingEnergy <= 0) break;
+
+        // Deduction per tap matches player's tap rate booster (+1, +5 depending) up to available energy
+        const tapCost = Math.min(remainingEnergy, ratePerTap);
+        if (tapCost <= 0) break;
+
+        remainingEnergy -= tapCost;
+        totalDeduction += tapCost;
+        totalYield += tapCost;
+        tapsExecuted++;
 
         soundFx.playTap(false);
 
@@ -131,10 +139,12 @@ export default function App() {
           id: now + i + Math.random(),
           x: touches[i].clientX,
           y: touches[i].clientY,
-          amount: tapYield,
+          amount: tapCost,
           isCrit: false,
         });
       }
+
+      if (tapsExecuted === 0) return prev;
 
       if (prev.hapticsEnabled) {
         soundFx.triggerHaptic();
@@ -148,13 +158,13 @@ export default function App() {
         setFloatingNumbers((curr) => curr.filter((f) => !idsToRemove.has(f.id)));
       }, 700);
 
-      // Instantaneous state update: coins increase by tap points and energy drops -1 per tap
+      // Instantaneous state update: coins and totalEarned increase by totalYield, energy decreases by totalDeduction
       return {
         ...prev,
         coins: prev.coins + totalYield,
         totalEarned: prev.totalEarned + totalYield,
-        totalTaps: prev.totalTaps + tapsToExecute,
-        energy: Math.max(0, prev.energy - tapsToExecute),
+        totalTaps: prev.totalTaps + tapsExecuted,
+        energy: remainingEnergy,
         lastEnergyTimestamp: now,
       };
     });
@@ -287,6 +297,22 @@ export default function App() {
         coins: prev.coins - cost,
         maxEnergy: prev.maxEnergy + 500,
         energy: prev.energy + 500,
+      };
+    });
+  };
+
+  const handleUpgradeTapRate = (cost: number) => {
+    setState((prev) => {
+      if (prev.coins < cost) return prev;
+      const currentLevel = (prev.mineCardLevels['multitap'] || 0) + 1;
+      return {
+        ...prev,
+        coins: prev.coins - cost,
+        tapPower: prev.tapPower + 1,
+        mineCardLevels: {
+          ...prev.mineCardLevels,
+          multitap: currentLevel,
+        },
       };
     });
   };
@@ -466,6 +492,13 @@ export default function App() {
         cipherWord={state.cipherWord}
         cipherSolvedToday={state.cipherSolvedToday}
         onSolveCipher={handleSolveCipher}
+        onNewCipherWord={(newWord) =>
+          setState((prev) => ({
+            ...prev,
+            cipherWord: newWord,
+            cipherSolvedToday: false,
+          }))
+        }
         goldCoinImg={goldCoin}
       />
 
@@ -489,6 +522,8 @@ export default function App() {
       <BoostModal
         isOpen={showBoost}
         onClose={() => setShowBoost(false)}
+        tapPower={state.tapPower}
+        onUpgradeTapRate={handleUpgradeTapRate}
         isTurboActive={isTurboActive}
         onBuyFullEnergy={handleBuyFullEnergy}
         onBuyTurbo={handleBuyTurbo}
