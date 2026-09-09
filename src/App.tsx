@@ -210,15 +210,22 @@ export default function App() {
       let updatedRecharge = prev.energyRechargeRate;
       let updatedCrit = prev.critChance;
 
-      if (card.effectType === 'tap_power') {
-        updatedTapPower += card.effectValue;
-      } else if (card.effectType === 'max_energy') {
-        updatedMaxEnergy += card.effectValue;
-        updatedEnergy = Math.min(updatedMaxEnergy, updatedEnergy + card.effectValue);
-      } else if (card.effectType === 'recharge_speed') {
-        updatedRecharge += card.effectValue;
-      } else if (card.effectType === 'crit_chance') {
-        updatedCrit = Math.min(0.5, updatedCrit + card.effectValue);
+      const applyBonus = (type: string, value: number) => {
+        if (type === 'tap_power') {
+          updatedTapPower += value;
+        } else if (type === 'max_energy') {
+          updatedMaxEnergy += value;
+          updatedEnergy = Math.min(updatedMaxEnergy, updatedEnergy + value);
+        } else if (type === 'recharge_speed') {
+          updatedRecharge += value;
+        } else if (type === 'crit_chance') {
+          updatedCrit = Math.min(0.5, updatedCrit + value);
+        }
+      };
+
+      applyBonus(card.effectType, card.effectValue);
+      if (card.secondaryEffectType && card.secondaryEffectValue) {
+        applyBonus(card.secondaryEffectType, card.secondaryEffectValue);
       }
 
       return {
@@ -455,6 +462,7 @@ export default function App() {
               tapLevel={state.tapLevel}
               maxEnergy={state.maxEnergy}
               critChance={state.critChance}
+              energyRechargeRate={state.energyRechargeRate}
               mineCardLevels={state.mineCardLevels}
               onUpgradeCard={handleUpgradeCard}
               goldCoinImg={goldCoin}
@@ -512,72 +520,86 @@ export default function App() {
       />
 
       {/* Modals */}
-      <DailyCipherModal
-        isOpen={showDailyCipher}
-        onClose={() => setShowDailyCipher(false)}
-        cipherWord={state.cipherWord}
-        cipherSolvedToday={state.cipherSolvedToday}
-        onSolveCipher={handleSolveCipher}
-        goldCoinImg={goldCoin}
-      />
+      {showDailyCipher && (
+        <DailyCipherModal
+          isOpen={showDailyCipher}
+          onClose={() => setShowDailyCipher(false)}
+          cipherWord={state.cipherWord}
+          cipherSolvedToday={state.cipherSolvedToday}
+          onSolveCipher={handleSolveCipher}
+          goldCoinImg={goldCoin}
+        />
+      )}
 
-      <DailyRewardModal
-        isOpen={showDailyReward}
-        onClose={() => setShowDailyReward(false)}
-        streakDay={state.streakDay}
-        lastClaimDate={state.lastClaimDate}
-        onClaimDay={handleClaimDailyStreak}
-        goldCoinImg={goldCoin}
-      />
+      {showDailyReward && (
+        <DailyRewardModal
+          isOpen={showDailyReward}
+          onClose={() => setShowDailyReward(false)}
+          streakDay={state.streakDay}
+          lastClaimDate={state.lastClaimDate}
+          onClaimDay={handleClaimDailyStreak}
+          goldCoinImg={goldCoin}
+        />
+      )}
 
-      <DailyComboModal
-        isOpen={showDailyCombo}
-        onClose={() => setShowDailyCombo(false)}
-        comboSolvedToday={state.comboSolvedToday}
-        onSolveCombo={handleSolveCombo}
-        goldCoinImg={goldCoin}
-      />
+      {showDailyCombo && (
+        <DailyComboModal
+          isOpen={showDailyCombo}
+          onClose={() => setShowDailyCombo(false)}
+          comboSolvedToday={state.comboSolvedToday}
+          onSolveCombo={handleSolveCombo}
+          goldCoinImg={goldCoin}
+        />
+      )}
 
-      <BoostModal
-        isOpen={showBoost}
-        onClose={() => setShowBoost(false)}
-        tapPower={state.tapPower}
-        onUpgradeTapRate={handleUpgradeTapRate}
-        isTurboActive={isTurboActive}
-        onBuyFullEnergy={handleBuyFullEnergy}
-        onBuyTurbo={handleBuyTurbo}
-        onBuyEnergyTank={handleBuyEnergyTank}
-        onNavigateToMine={() => setActiveTab('mine')}
-        coins={state.coins}
-        goldCoinImg={goldCoin}
-      />
+      {showBoost && (
+        <BoostModal
+          isOpen={showBoost}
+          onClose={() => setShowBoost(false)}
+          tapPower={state.tapPower}
+          onUpgradeTapRate={handleUpgradeTapRate}
+          isTurboActive={isTurboActive}
+          onBuyFullEnergy={handleBuyFullEnergy}
+          onBuyTurbo={handleBuyTurbo}
+          onBuyEnergyTank={handleBuyEnergyTank}
+          onNavigateToMine={() => setActiveTab('mine')}
+          coins={state.coins}
+          goldCoinImg={goldCoin}
+        />
+      )}
 
-      <ConnectWalletModal
-        isOpen={showWallet}
-        onClose={() => setShowWallet(false)}
-        walletConnected={state.walletConnected}
-        walletAddress={state.walletAddress}
-        walletProvider={state.walletProvider}
-        onConnectWallet={handleConnectWallet}
-        onDisconnectWallet={handleDisconnectWallet}
-      />
+      {showWallet && (
+        <ConnectWalletModal
+          isOpen={showWallet}
+          onClose={() => setShowWallet(false)}
+          walletConnected={state.walletConnected}
+          walletAddress={state.walletAddress}
+          walletProvider={state.walletProvider}
+          onConnectWallet={handleConnectWallet}
+          onDisconnectWallet={handleDisconnectWallet}
+        />
+      )}
 
-      <TierModal
-        isOpen={showTierModal}
-        onClose={() => setShowTierModal(false)}
-        totalEarned={state.totalEarned}
-        tapLevel={state.tapLevel}
-      />
+      {showTierModal && (
+        <TierModal
+          isOpen={showTierModal}
+          onClose={() => setShowTierModal(false)}
+          totalEarned={state.totalEarned}
+          tapLevel={state.tapLevel}
+        />
+      )}
 
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        soundEnabled={state.soundEnabled}
-        hapticsEnabled={state.hapticsEnabled}
-        onToggleSound={() => setState((p) => ({ ...p, soundEnabled: !p.soundEnabled }))}
-        onToggleHaptics={() => setState((p) => ({ ...p, hapticsEnabled: !p.hapticsEnabled }))}
-        onResetGame={handleResetGame}
-      />
+      {showSettings && (
+        <SettingsModal
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          soundEnabled={state.soundEnabled}
+          hapticsEnabled={state.hapticsEnabled}
+          onToggleSound={() => setState((p) => ({ ...p, soundEnabled: !p.soundEnabled }))}
+          onToggleHaptics={() => setState((p) => ({ ...p, hapticsEnabled: !p.hapticsEnabled }))}
+          onResetGame={handleResetGame}
+        />
+      )}
     </div>
   );
 }

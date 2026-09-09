@@ -20,7 +20,7 @@ export interface Task {
 export interface MineCard {
   id: string;
   name: string;
-  category: 'skills' | 'nodes' | 'special';
+  category: 'skills' | 'nodes' | 'special' | 'protocol';
   description: string;
   baseCost: number;
   costMultiplier: number;
@@ -28,6 +28,8 @@ export interface MineCard {
   maxLevel: number;
   effectType: 'tap_power' | 'max_energy' | 'recharge_speed' | 'crit_chance';
   effectValue: number; // e.g. +1 per level or +250 energy per level
+  secondaryEffectType?: 'tap_power' | 'max_energy' | 'recharge_speed' | 'crit_chance';
+  secondaryEffectValue?: number;
   icon: string;
 }
 

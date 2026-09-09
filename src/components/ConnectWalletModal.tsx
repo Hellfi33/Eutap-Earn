@@ -21,9 +21,9 @@ export const ConnectWalletModal: React.FC<ConnectWalletModalProps> = ({
   onConnectWallet,
   onDisconnectWallet,
 }) => {
-  if (!isOpen) return null;
-
   const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
+
+  if (!isOpen) return null;
 
   const WALLET_OPTIONS = [
     {

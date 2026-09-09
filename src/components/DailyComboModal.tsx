@@ -18,13 +18,13 @@ export const DailyComboModal: React.FC<DailyComboModalProps> = ({
   onSolveCombo,
   goldCoinImg,
 }) => {
-  if (!isOpen) return null;
-
   // Today's secret combo cards
   const secretCardIds = ['multitap', 'energy-battery', 'l2-validator'];
   const [selectedCards, setSelectedCards] = useState<string[]>(
     comboSolvedToday ? secretCardIds : []
   );
+
+  if (!isOpen) return null;
 
   const handleCardClick = (cardId: string) => {
     if (comboSolvedToday) return;

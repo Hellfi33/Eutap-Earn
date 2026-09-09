@@ -20,8 +20,6 @@ export const DailyCipherModal: React.FC<DailyCipherModalProps> = ({
   onSolveCipher,
   goldCoinImg,
 }) => {
-  if (!isOpen) return null;
-
   const targetLetters = (cipherWord || 'EUTAP').toUpperCase().split('');
   const [solvedLetters, setSolvedLetters] = useState<string[]>(
     cipherSolvedToday ? targetLetters : []
@@ -32,11 +30,12 @@ export const DailyCipherModal: React.FC<DailyCipherModalProps> = ({
 
   // 24hrs ticking countdown timer
   useEffect(() => {
+    if (!isOpen) return;
     const timer = setInterval(() => {
       setCountdown(getDailyCipherCountdown());
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [isOpen]);
 
   // Synchronize when cipherWord changes
   useEffect(() => {
@@ -47,7 +46,9 @@ export const DailyCipherModal: React.FC<DailyCipherModalProps> = ({
     }
     setCurrentMorse('');
     setFeedback('');
-  }, [cipherWord, cipherSolvedToday]);
+  }, [cipherWord, cipherSolvedToday, isOpen]);
+
+  if (!isOpen) return null;
 
   const currentTargetIndex = solvedLetters.length;
   const currentTargetLetter = targetLetters[currentTargetIndex];
