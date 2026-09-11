@@ -76,9 +76,13 @@ export interface GameState {
   cipherSolvedToday: boolean;
   lastCipherDate: string | null;
 
-  // Daily Combo
+  // Daily Combo (24hr reset, once per day)
   comboSolvedToday: boolean;
   lastComboDate: string | null;
+
+  // Lucky Wheel (5 free spins every 3 hours)
+  spinCount: number;
+  nextSpinRefillTime: number; // timestamp in ms when spins refill
 
   // Boosters
   fullEnergyRemaining: number;

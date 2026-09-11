@@ -27,6 +27,7 @@ import { AirdropTab } from './components/AirdropTab';
 import { DailyCipherModal } from './components/DailyCipherModal';
 import { DailyRewardModal } from './components/DailyRewardModal';
 import { DailyComboModal } from './components/DailyComboModal';
+import { LuckyWheelModal } from './components/LuckyWheelModal';
 import { BoostModal } from './components/BoostModal';
 import { ConnectWalletModal } from './components/ConnectWalletModal';
 import { TierModal } from './components/TierModal';
@@ -41,6 +42,7 @@ export default function App() {
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [showDailyCipher, setShowDailyCipher] = useState(false);
   const [showDailyCombo, setShowDailyCombo] = useState(false);
+  const [showLuckyWheel, setShowLuckyWheel] = useState(false);
   const [showBoost, setShowBoost] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
@@ -76,28 +78,58 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // 24-Hour Automatic Daily Cipher Cycle:
-  // Automatically rotates to today's date-seeded cipher word and resets solved status every 24 hours.
+  // 24-Hour Automatic Daily Cycles (Cipher & Combo) & 3-Hour Lucky Spin Refill:
   useEffect(() => {
-    const checkDailyCipherReset = () => {
+    const checkDailyAndSpinResets = () => {
+      const now = Date.now();
       const todayStr = new Date().toISOString().split('T')[0];
       const todayWord = getDailyCipherWord(todayStr);
 
       setState((prev) => {
-        const isNewDay = prev.lastCipherDate && prev.lastCipherDate !== todayStr;
-        if (isNewDay || prev.cipherWord !== todayWord) {
-          return {
-            ...prev,
-            cipherWord: todayWord,
-            cipherSolvedToday: isNewDay ? false : prev.cipherSolvedToday,
-          };
+        let changed = false;
+        const isNewCipherDay = prev.lastCipherDate && prev.lastCipherDate !== todayStr;
+        const isNewComboDay = prev.lastComboDate && prev.lastComboDate !== todayStr;
+
+        let nextCipherWord = prev.cipherWord;
+        let nextCipherSolved = prev.cipherSolvedToday;
+        let nextComboSolved = prev.comboSolvedToday;
+        let nextSpinCount = prev.spinCount;
+        let nextSpinRefill = prev.nextSpinRefillTime;
+
+        if (isNewCipherDay || prev.cipherWord !== todayWord) {
+          nextCipherWord = todayWord;
+          nextCipherSolved = isNewCipherDay ? false : prev.cipherSolvedToday;
+          changed = true;
         }
-        return prev;
+
+        // Daily combo resets every 24hrs (player can only claim once a day)
+        if (isNewComboDay && prev.comboSolvedToday) {
+          nextComboSolved = false;
+          changed = true;
+        }
+
+        // 5 Free spins refill every 3 hours
+        if (prev.spinCount < 5 && prev.nextSpinRefillTime > 0 && now >= prev.nextSpinRefillTime) {
+          nextSpinCount = 5;
+          nextSpinRefill = 0;
+          changed = true;
+        }
+
+        if (!changed) return prev;
+
+        return {
+          ...prev,
+          cipherWord: nextCipherWord,
+          cipherSolvedToday: nextCipherSolved,
+          comboSolvedToday: nextComboSolved,
+          spinCount: nextSpinCount,
+          nextSpinRefillTime: nextSpinRefill,
+        };
       });
     };
 
-    checkDailyCipherReset();
-    const interval = setInterval(checkDailyCipherReset, 1000);
+    checkDailyAndSpinResets();
+    const interval = setInterval(checkDailyAndSpinResets, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -285,7 +317,7 @@ export default function App() {
     }));
   };
 
-  // Daily Combo Solve
+  // Daily Combo Solve (resets every 24hrs)
   const handleSolveCombo = (reward: number) => {
     const todayStr = new Date().toISOString().split('T')[0];
     setState((prev) => ({
@@ -295,6 +327,17 @@ export default function App() {
       diamonds: prev.diamonds + 10,
       comboSolvedToday: true,
       lastComboDate: todayStr,
+    }));
+  };
+
+  // Lucky Spin Wheel: player wins between 500k and 3M, 5 free spins every 3h
+  const handleSpinUsed = (reward: number, updatedSpins: number, nextRefill: number) => {
+    setState((prev) => ({
+      ...prev,
+      coins: prev.coins + reward,
+      totalEarned: prev.totalEarned + reward,
+      spinCount: updatedSpins,
+      nextSpinRefillTime: nextRefill,
     }));
   };
 
@@ -443,11 +486,14 @@ export default function App() {
             cipherSolvedToday={state.cipherSolvedToday}
             comboSolvedToday={state.comboSolvedToday}
             isTurboActive={isTurboActive}
+            spinCount={state.spinCount}
+            nextSpinRefillTime={state.nextSpinRefillTime}
             onMultiTap={handleMultiTap}
             floatingNumbers={floatingNumbers}
             onOpenDailyReward={() => setShowDailyReward(true)}
             onOpenDailyCipher={() => setShowDailyCipher(true)}
             onOpenDailyCombo={() => setShowDailyCombo(true)}
+            onOpenLuckyWheel={() => setShowLuckyWheel(true)}
             onOpenBoost={() => setShowBoost(true)}
             mascotImg={mascotAvatar}
             goldCoinImg={goldCoin}
@@ -548,6 +594,17 @@ export default function App() {
           onClose={() => setShowDailyCombo(false)}
           comboSolvedToday={state.comboSolvedToday}
           onSolveCombo={handleSolveCombo}
+          goldCoinImg={goldCoin}
+        />
+      )}
+
+      {showLuckyWheel && (
+        <LuckyWheelModal
+          isOpen={showLuckyWheel}
+          onClose={() => setShowLuckyWheel(false)}
+          spinCount={state.spinCount}
+          nextSpinRefillTime={state.nextSpinRefillTime}
+          onSpinUsed={handleSpinUsed}
           goldCoinImg={goldCoin}
         />
       )}

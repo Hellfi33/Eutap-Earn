@@ -28,6 +28,9 @@ export const INITIAL_STATE: GameState = {
   comboSolvedToday: false,
   lastComboDate: null,
 
+  spinCount: 5,
+  nextSpinRefillTime: 0,
+
   fullEnergyRemaining: 3,
   turboActiveUntil: 0,
   turboRemainingToday: 3,
@@ -72,6 +75,16 @@ export function loadGameState(): GameState {
     const isNewCipherDay = parsed.lastCipherDate && parsed.lastCipherDate !== todayStr;
     const todayCipherWord = getDailyCipherWord(todayStr);
 
+    const isNewComboDay = parsed.lastComboDate && parsed.lastComboDate !== todayStr;
+
+    // Check spin refills (5 free spins every 3 hours)
+    let spinCount = typeof parsed.spinCount === 'number' ? parsed.spinCount : 5;
+    let nextSpinRefillTime = typeof parsed.nextSpinRefillTime === 'number' ? parsed.nextSpinRefillTime : 0;
+    if (spinCount < 5 && nextSpinRefillTime > 0 && now >= nextSpinRefillTime) {
+      spinCount = 5;
+      nextSpinRefillTime = 0;
+    }
+
     return {
       ...INITIAL_STATE,
       ...parsed,
@@ -83,6 +96,9 @@ export function loadGameState(): GameState {
       lastEnergyTimestamp: now,
       cipherWord: todayCipherWord,
       cipherSolvedToday: isNewCipherDay ? false : Boolean(parsed.cipherSolvedToday),
+      comboSolvedToday: isNewComboDay ? false : Boolean(parsed.comboSolvedToday),
+      spinCount,
+      nextSpinRefillTime,
     };
   } catch {
     return INITIAL_STATE;

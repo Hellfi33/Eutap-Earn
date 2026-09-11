@@ -66,10 +66,7 @@ export function getLevelTapCap(level: number): number {
   return tier.maxCoins;
 }
 
-// Formats energy/tap capacity values cleanly for the tap cap bar
+// Formats energy/tap capacity values cleanly for the tap cap bar (e.g., 2.7M, 8.1M, 100K)
 export function formatTapCap(num: number): string {
-  if (num >= 100_000_000) {
-    return formatCompactNumber(num);
-  }
-  return num.toLocaleString();
+  return formatCompactNumber(num);
 }

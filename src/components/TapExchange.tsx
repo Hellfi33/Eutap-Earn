@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar, Key, Layers, ChevronRight, Zap, Flame } from 'lucide-react';
+import { Calendar, Key, Layers, ChevronRight, Zap, Flame, Disc } from 'lucide-react';
 import { FloatingTapNumber } from '../types';
 import { soundFx } from '../utils/audio';
 import { formatMilTapPoints, formatTapCap } from '../data/tiers';
 import { getDailyCipherCountdown } from '../data/ciphers';
+import { getDailyComboCountdown } from '../data/combo';
+import { getSpinRefillCountdown } from '../data/spinWheel';
 
 interface TapExchangeProps {
   coins: number;
@@ -17,11 +19,14 @@ interface TapExchangeProps {
   cipherSolvedToday: boolean;
   comboSolvedToday: boolean;
   isTurboActive: boolean;
+  spinCount: number;
+  nextSpinRefillTime: number;
   onMultiTap: (points: { clientX: number; clientY: number }[]) => void;
   floatingNumbers: FloatingTapNumber[];
   onOpenDailyReward: () => void;
   onOpenDailyCipher: () => void;
   onOpenDailyCombo: () => void;
+  onOpenLuckyWheel: () => void;
   onOpenBoost: () => void;
   mascotImg: string;
   goldCoinImg: string;
@@ -39,11 +44,14 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
   cipherSolvedToday,
   comboSolvedToday,
   isTurboActive,
+  spinCount,
+  nextSpinRefillTime,
   onMultiTap,
   floatingNumbers,
   onOpenDailyReward,
   onOpenDailyCipher,
   onOpenDailyCombo,
+  onOpenLuckyWheel,
   onOpenBoost,
   mascotImg,
   goldCoinImg,
@@ -53,13 +61,21 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const lastTouchTimeRef = useRef<number>(0);
   const [cipherCountdown, setCipherCountdown] = useState<string>(getDailyCipherCountdown());
+  const [comboCountdown, setComboCountdown] = useState<string>(getDailyComboCountdown());
+  const [spinCountdown, setSpinCountdown] = useState<string>('');
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCipherCountdown(getDailyCipherCountdown());
+      setComboCountdown(getDailyComboCountdown());
+      if (nextSpinRefillTime > 0) {
+        setSpinCountdown(getSpinRefillCountdown(nextSpinRefillTime));
+      } else {
+        setSpinCountdown('');
+      }
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [nextSpinRefillTime]);
 
   // Multi-touch handler for fast finger tapping
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -130,8 +146,8 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-between px-3 py-1.5 select-none overflow-hidden">
-      {/* Top 3 Quick Feature Cards */}
-      <div className="w-full max-w-sm grid grid-cols-3 gap-1.5 sm:gap-2 shrink-0">
+      {/* Top 4 Quick Feature Cards */}
+      <div className="w-full max-w-sm grid grid-cols-4 gap-1 sm:gap-1.5 shrink-0">
         {/* Daily reward */}
         <button
           id="btn-daily-reward"
@@ -139,14 +155,14 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
             soundFx.playClick();
             onOpenDailyReward();
           }}
-          className="relative bg-[#141923] hover:bg-[#19202e] border border-white/10 hover:border-amber-400/40 rounded-xl sm:rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center transition group shadow-md"
+          className="relative bg-[#141923] hover:bg-[#19202e] border border-white/10 hover:border-amber-400/40 rounded-xl sm:rounded-2xl p-1.5 sm:p-2 flex flex-col items-center justify-center transition group shadow-md"
         >
-          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 rounded-full border border-slate-600 bg-emerald-500/80" />
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-indigo-950/60 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-1 group-hover:scale-105 transition">
-            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-1.5 h-1.5 rounded-full border border-slate-600 bg-emerald-500/80" />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl bg-indigo-950/60 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-1 group-hover:scale-105 transition">
+            <Calendar className="w-3.5 h-3.5" />
           </div>
-          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-200 leading-tight">Daily reward</span>
-          <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium mt-0.5">
+          <span className="text-[9px] sm:text-[10px] font-semibold text-slate-200 leading-tight">Reward</span>
+          <span className="text-[8px] sm:text-[9px] text-slate-400 font-medium mt-0.5">
             {streakDay > 0 ? `Day ${streakDay}` : 'Claim'}
           </span>
         </button>
@@ -158,54 +174,89 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
             soundFx.playClick();
             onOpenDailyCipher();
           }}
-          className="relative bg-[#141923] hover:bg-[#19202e] border border-white/10 hover:border-amber-400/40 rounded-xl sm:rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center transition group shadow-md"
+          className="relative bg-[#141923] hover:bg-[#19202e] border border-white/10 hover:border-amber-400/40 rounded-xl sm:rounded-2xl p-1.5 sm:p-2 flex flex-col items-center justify-center transition group shadow-md"
         >
           <div
-            className={`absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 rounded-full border ${
+            className={`absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-1.5 h-1.5 rounded-full border ${
               cipherSolvedToday ? 'bg-emerald-400 border-emerald-300' : 'bg-transparent border-slate-600'
             }`}
           />
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-purple-950/60 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-1 group-hover:scale-105 transition">
-            <Key className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl bg-purple-950/60 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-1 group-hover:scale-105 transition">
+            <Key className="w-3.5 h-3.5" />
           </div>
-          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-200 leading-tight">Daily cipher</span>
+          <span className="text-[9px] sm:text-[10px] font-semibold text-slate-200 leading-tight">Cipher</span>
           <div className="flex items-center gap-1 mt-0.5">
             {cipherSolvedToday ? (
-              <span className="text-[9px] sm:text-[10px] text-emerald-400 font-mono font-bold">{cipherCountdown}</span>
+              <span className="text-[8px] sm:text-[9px] text-emerald-400 font-mono font-bold">{cipherCountdown}</span>
             ) : (
               <>
                 <img
                   src={goldCoinImg}
                   alt=""
                   referrerPolicy="no-referrer"
-                  className="w-3 h-3 rounded-full"
+                  className="w-2.5 h-2.5 rounded-full"
                 />
-                <span className="text-[9px] sm:text-[10px] text-amber-400 font-bold">200,000</span>
+                <span className="text-[8px] sm:text-[9px] text-amber-400 font-bold">200K</span>
               </>
             )}
           </div>
         </button>
 
-        {/* Daily combo */}
+        {/* Daily combo (24hrs reset, once a day) */}
         <button
           id="btn-daily-combo"
           onClick={() => {
             soundFx.playClick();
             onOpenDailyCombo();
           }}
-          className="relative bg-[#141923] hover:bg-[#19202e] border border-white/10 hover:border-amber-400/40 rounded-xl sm:rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center transition group shadow-md"
+          className="relative bg-[#141923] hover:bg-[#19202e] border border-white/10 hover:border-amber-400/40 rounded-xl sm:rounded-2xl p-1.5 sm:p-2 flex flex-col items-center justify-center transition group shadow-md"
         >
           <div
-            className={`absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-2 h-2 rounded-full border ${
+            className={`absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-1.5 h-1.5 rounded-full border ${
               comboSolvedToday ? 'bg-emerald-400 border-emerald-300' : 'bg-transparent border-slate-600'
             }`}
           />
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-950/60 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-1 group-hover:scale-105 transition">
-            <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl bg-amber-950/60 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-1 group-hover:scale-105 transition">
+            <Layers className="w-3.5 h-3.5" />
           </div>
-          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-200 leading-tight">Daily combo</span>
-          <span className="text-[9px] sm:text-[10px] text-slate-400 font-medium mt-0.5">
-            {comboSolvedToday ? 'Claimed ✓' : '200,000'}
+          <span className="text-[9px] sm:text-[10px] font-semibold text-slate-200 leading-tight">Combo</span>
+          <div className="flex items-center gap-1 mt-0.5">
+            {comboSolvedToday ? (
+              <span className="text-[8px] sm:text-[9px] text-emerald-400 font-mono font-bold">{comboCountdown}</span>
+            ) : (
+              <>
+                <img
+                  src={goldCoinImg}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  className="w-2.5 h-2.5 rounded-full"
+                />
+                <span className="text-[8px] sm:text-[9px] text-amber-400 font-bold">200K</span>
+              </>
+            )}
+          </div>
+        </button>
+
+        {/* Lucky Spin Wheel Button */}
+        <button
+          id="btn-lucky-spin"
+          onClick={() => {
+            soundFx.playClick();
+            onOpenLuckyWheel();
+          }}
+          className="relative bg-[#141923] hover:bg-[#19202e] border border-white/10 hover:border-amber-400/40 rounded-xl sm:rounded-2xl p-1.5 sm:p-2 flex flex-col items-center justify-center transition group shadow-md"
+        >
+          <div
+            className={`absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-1.5 h-1.5 rounded-full border ${
+              spinCount > 0 ? 'bg-amber-400 border-amber-300 animate-pulse' : 'bg-transparent border-slate-600'
+            }`}
+          />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 mb-1 group-hover:scale-105 transition">
+            <Disc className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-45 transition duration-300" />
+          </div>
+          <span className="text-[9px] sm:text-[10px] font-semibold text-slate-200 leading-tight">Lucky Spin</span>
+          <span className="text-[8px] sm:text-[9px] text-amber-400 font-mono font-bold mt-0.5 truncate max-w-full">
+            {spinCount > 0 ? `${spinCount} Spins` : (spinCountdown || 'Empty')}
           </span>
         </button>
       </div>
@@ -392,11 +443,15 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
 
       {/* Bottom Energy Bar & Boost Trigger - Fits tightly above bottom navigation */}
       <div className="w-full max-w-sm shrink-0 px-1 pb-1">
-        <div className="flex items-center justify-between text-xs font-bold mb-1 px-1">
-          <div className="flex items-center gap-1.5 text-amber-400">
-            <Zap className="w-4 h-4 fill-amber-400 text-amber-400" />
-            <span className="text-xs sm:text-sm font-black text-white">{formatTapCap(energy)}</span>
-            <span className="text-slate-500 font-semibold">/ {formatTapCap(maxEnergy)}</span>
+        <div className="flex items-center justify-between text-xs font-bold mb-1.5 px-0.5">
+          <div className="flex items-center gap-1 text-amber-400 whitespace-nowrap">
+            <Zap className="w-4 h-4 fill-amber-400 text-amber-400 shrink-0" />
+            <span className="text-xs sm:text-sm font-black text-white font-mono tracking-tight">
+              {energy.toLocaleString()}
+            </span>
+            <span className="text-slate-400 font-semibold font-mono text-xs">
+              /{formatTapCap(maxEnergy)}
+            </span>
           </div>
 
           <button
@@ -405,7 +460,7 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
               soundFx.playClick();
               onOpenBoost();
             }}
-            className="flex items-center gap-1 text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-2.5 py-0.5 rounded-lg border border-amber-400/30 transition group"
+            className="flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-3 py-1 rounded-xl border border-amber-400/30 transition group shrink-0 active:scale-95 shadow-sm"
           >
             <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 group-hover:scale-110 transition" />
             <span>Boost</span>
