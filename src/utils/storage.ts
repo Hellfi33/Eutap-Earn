@@ -48,6 +48,8 @@ export const INITIAL_STATE: GameState = {
 
   soundEnabled: true,
   hapticsEnabled: true,
+
+  abcdRewardTimestamps: [],
 };
 
 export function loadGameState(): GameState {
@@ -85,6 +87,11 @@ export function loadGameState(): GameState {
       nextSpinRefillTime = 0;
     }
 
+    // Clean up expired ABCD reward timestamps older than 24 hours (86,400,000 ms)
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+    const rawTimestamps = Array.isArray(parsed.abcdRewardTimestamps) ? parsed.abcdRewardTimestamps : [];
+    const validAbcdTimestamps = rawTimestamps.filter((t: any) => typeof t === 'number' && now - t < TWENTY_FOUR_HOURS);
+
     return {
       ...INITIAL_STATE,
       ...parsed,
@@ -99,6 +106,7 @@ export function loadGameState(): GameState {
       comboSolvedToday: isNewComboDay ? false : Boolean(parsed.comboSolvedToday),
       spinCount,
       nextSpinRefillTime,
+      abcdRewardTimestamps: validAbcdTimestamps,
     };
   } catch {
     return INITIAL_STATE;

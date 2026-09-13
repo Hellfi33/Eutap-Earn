@@ -108,4 +108,7 @@ export interface GameState {
   // Settings
   soundEnabled: boolean;
   hapticsEnabled: boolean;
+
+  // Secret ABCD Reward (max 2x every 24 hours)
+  abcdRewardTimestamps: number[];
 }

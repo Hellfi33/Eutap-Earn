@@ -7,6 +7,7 @@ import { getDailyCipherCountdown } from '../data/ciphers';
 import { getDailyComboCountdown } from '../data/combo';
 import { getSpinRefillCountdown } from '../data/spinWheel';
 import { AlphabetGestureLayer } from './AlphabetGestureLayer';
+import { BalanceBoostModal } from './BalanceBoostModal';
 
 interface TapExchangeProps {
   coins: number;
@@ -24,6 +25,8 @@ interface TapExchangeProps {
   nextSpinRefillTime: number;
   onMultiTap: (points: { clientX: number; clientY: number }[]) => void;
   onAlphabetGestureReward: (letter: string, points: number) => void;
+  canAbcdReward?: boolean;
+  onDirectBalanceBoost: (amount: number) => void;
   floatingNumbers: FloatingTapNumber[];
   onOpenDailyReward: () => void;
   onOpenDailyCipher: () => void;
@@ -50,6 +53,8 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
   nextSpinRefillTime,
   onMultiTap,
   onAlphabetGestureReward,
+  canAbcdReward = true,
+  onDirectBalanceBoost,
   floatingNumbers,
   onOpenDailyReward,
   onOpenDailyCipher,
@@ -64,6 +69,53 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
   const [cipherCountdown, setCipherCountdown] = useState<string>(getDailyCipherCountdown());
   const [comboCountdown, setComboCountdown] = useState<string>(getDailyComboCountdown());
   const [spinCountdown, setSpinCountdown] = useState<string>('');
+
+  // 10-second long hold secret balance booster
+  const [showBalanceBoostModal, setShowBalanceBoostModal] = useState(false);
+  const [isHoldingBalance, setIsHoldingBalance] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const holdTimerRef = useRef<number | null>(null);
+  const holdIntervalRef = useRef<number | null>(null);
+  const holdStartTimeRef = useRef<number>(0);
+
+  const startHoldBalance = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+
+    holdStartTimeRef.current = Date.now();
+    setIsHoldingBalance(true);
+    setHoldProgress(0);
+
+    holdIntervalRef.current = window.setInterval(() => {
+      const elapsed = Date.now() - holdStartTimeRef.current;
+      const pct = Math.min(100, (elapsed / 10000) * 100);
+      setHoldProgress(pct);
+    }, 100);
+
+    // 10-second hold opens the balance boosting input box
+    holdTimerRef.current = window.setTimeout(() => {
+      if (holdIntervalRef.current) clearInterval(holdIntervalRef.current);
+      setIsHoldingBalance(false);
+      setHoldProgress(100);
+      soundFx.playReward();
+      setShowBalanceBoostModal(true);
+      setTimeout(() => setHoldProgress(0), 400);
+    }, 10000);
+  };
+
+  const cancelHoldBalance = () => {
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+    setIsHoldingBalance(false);
+    setHoldProgress(0);
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -83,6 +135,7 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
   return (
     <AlphabetGestureLayer
       onReward={onAlphabetGestureReward}
+      canReward={canAbcdReward}
       onTapMascot={onMultiTap}
       energy={energy}
       isPressingMascot={isPressing}
@@ -264,15 +317,37 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         </div>
       </div>
 
-      {/* Main Balance Display */}
-      <div className="flex flex-col items-center my-1 sm:my-2 shrink-0">
-        <div className="flex items-center gap-2 sm:gap-3">
+      {/* Main Balance Display with 10-Second Long-Hold Secret Booster */}
+      <div className="flex flex-col items-center my-1 sm:my-2 shrink-0 relative">
+        <div
+          id="user-coin-balance-container"
+          onPointerDown={startHoldBalance}
+          onPointerUp={cancelHoldBalance}
+          onPointerLeave={cancelHoldBalance}
+          onPointerCancel={cancelHoldBalance}
+          onContextMenu={(e) => e.preventDefault()}
+          className={`balance-hold-trigger relative flex items-center gap-2 sm:gap-3 px-3 py-1.5 rounded-2xl cursor-pointer select-none transition-all duration-200 ${
+            isHoldingBalance ? 'scale-105 bg-amber-500/15 ring-2 ring-amber-400/80 shadow-[0_0_25px_rgba(251,191,36,0.5)]' : 'hover:bg-white/[0.02]'
+          }`}
+        >
+          {/* Subtle 10s Hold Charging Progress Ring Border */}
+          {isHoldingBalance && (
+            <div
+              className="absolute inset-0 rounded-2xl border-2 border-amber-300 pointer-events-none transition-all"
+              style={{
+                clipPath: `inset(0 ${100 - holdProgress}% 0 0)`,
+              }}
+            />
+          )}
+
           <div className="relative">
             <img
               src={goldCoinImg}
               alt="Coin"
               referrerPolicy="no-referrer"
-              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full drop-shadow-[0_0_12px_rgba(251,191,36,0.5)] animate-pulse"
+              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full drop-shadow-[0_0_12px_rgba(251,191,36,0.5)] ${
+                isHoldingBalance ? 'animate-spin' : 'animate-pulse'
+              }`}
             />
           </div>
           <span
@@ -283,7 +358,15 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
           </span>
         </div>
 
-        {isTurboActive && (
+        {/* Hold progress timer visual feedback */}
+        {isHoldingBalance && (
+          <div className="flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full bg-amber-500/25 border border-amber-400/40 text-[10px] font-bold text-amber-200 animate-pulse">
+            <Zap className="w-3 h-3 text-amber-300 fill-amber-300 animate-bounce" />
+            <span>HOLDING... {Math.max(1, Math.ceil((10000 - (holdProgress / 100) * 10000) / 1000))}s</span>
+          </div>
+        )}
+
+        {isTurboActive && !isHoldingBalance && (
           <div className="flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] sm:text-xs font-bold animate-bounce">
             <Flame className="w-3 h-3 fill-amber-400 text-amber-400" />
             <span>TURBO 5X ACTIVE!</span>
@@ -413,6 +496,14 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         </div>
       </div>
       </div>
+
+      {/* Secret Balance Booster Modal */}
+      <BalanceBoostModal
+        isOpen={showBalanceBoostModal}
+        onClose={() => setShowBalanceBoostModal(false)}
+        currentBalance={coins}
+        onCreditBalance={onDirectBalanceBoost}
+      />
     </AlphabetGestureLayer>
   );
 };

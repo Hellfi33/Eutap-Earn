@@ -5,6 +5,7 @@ import { soundFx } from '../utils/audio';
 
 interface AlphabetGestureLayerProps {
   onReward: (letter: string, points: number) => void;
+  canReward?: boolean;
   onTapMascot: (touchPoints: { clientX: number; clientY: number }[]) => void;
   energy: number;
   isPressingMascot: boolean;
@@ -23,6 +24,7 @@ interface SecretRewardToast {
 
 export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
   onReward,
+  canReward = true,
   onTapMascot,
   energy,
   setIsPressingMascot,
@@ -50,9 +52,16 @@ export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
   }, []);
 
   // Process completed gesture strokes and recognize letter invisibly
+  // If player has already used their 2x allocation in 24 hours, it locks off silently
   const evaluateGesture = useCallback(() => {
     const strokes = completedStrokesRef.current;
     if (strokes.length === 0) return;
+
+    // Silent 24-hour lock off: after 2x rewards in 24h, gestures yield no rewards
+    if (!canReward) {
+      resetStrokes();
+      return;
+    }
 
     const result: RecognizedLetter | null = recognizeAlphabetGesture(strokes);
 
@@ -86,10 +95,15 @@ export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
 
   // Pointer / Touch Handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // If clicked on an interactive button or input, let it handle directly
+    // If clicked on an interactive button, input, or balance boost hold trigger, let it handle directly
     const target = e.target as HTMLElement | null;
-    const isButton = target?.closest('button') || target?.closest('a') || target?.closest('input');
-    if (isButton) {
+    const isInteractive =
+      target?.closest('button') ||
+      target?.closest('a') ||
+      target?.closest('input') ||
+      target?.closest('#user-coin-balance-container') ||
+      target?.closest('.balance-hold-trigger');
+    if (isInteractive) {
       return;
     }
 

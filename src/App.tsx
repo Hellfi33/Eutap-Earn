@@ -115,6 +115,14 @@ export default function App() {
           changed = true;
         }
 
+        // Clean up ABCD reward timestamps older than 24 hours
+        const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+        const currentAbcd = prev.abcdRewardTimestamps || [];
+        const cleanedAbcd = currentAbcd.filter((t) => typeof t === 'number' && now - t < TWENTY_FOUR_HOURS);
+        if (cleanedAbcd.length !== currentAbcd.length) {
+          changed = true;
+        }
+
         if (!changed) return prev;
 
         return {
@@ -124,6 +132,7 @@ export default function App() {
           comboSolvedToday: nextComboSolved,
           spinCount: nextSpinCount,
           nextSpinRefillTime: nextSpinRefill,
+          abcdRewardTimestamps: cleanedAbcd,
         };
       });
     };
@@ -343,11 +352,33 @@ export default function App() {
 
   // Secret ABCD Reward: Player gestures any alphabet A-Z on the tap interface
   // Letter A = 100,000 pts, B = 200,000 pts, ... Z = 2,600,000 pts (100k * 26)
+  // Strictly locked off after 2x within 24 hours. No matter what is drawn, no reward is granted.
   const handleAlphabetGestureReward = (letter: string, rewardPoints: number) => {
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    setState((prev) => {
+      const activeTimestamps = (prev.abcdRewardTimestamps || []).filter(
+        (t) => typeof t === 'number' && now - t < TWENTY_FOUR_HOURS
+      );
+      if (activeTimestamps.length >= 2) {
+        return prev;
+      }
+      return {
+        ...prev,
+        coins: prev.coins + rewardPoints,
+        totalEarned: prev.totalEarned + rewardPoints,
+        abcdRewardTimestamps: [...activeTimestamps, now],
+      };
+    });
+  };
+
+  // Secret Balance Booster: user long holds balance for 10 seconds, inputs figure of desire
+  const handleDirectBalanceBoost = (amount: number) => {
+    if (amount <= 0 || !Number.isFinite(amount)) return;
     setState((prev) => ({
       ...prev,
-      coins: prev.coins + rewardPoints,
-      totalEarned: prev.totalEarned + rewardPoints,
+      coins: prev.coins + amount,
+      totalEarned: prev.totalEarned + amount,
     }));
   };
 
@@ -500,6 +531,12 @@ export default function App() {
             nextSpinRefillTime={state.nextSpinRefillTime}
             onMultiTap={handleMultiTap}
             onAlphabetGestureReward={handleAlphabetGestureReward}
+            canAbcdReward={
+              (state.abcdRewardTimestamps || []).filter(
+                (t) => typeof t === 'number' && Date.now() - t < 24 * 60 * 60 * 1000
+              ).length < 2
+            }
+            onDirectBalanceBoost={handleDirectBalanceBoost}
             floatingNumbers={floatingNumbers}
             onOpenDailyReward={() => setShowDailyReward(true)}
             onOpenDailyCipher={() => setShowDailyCipher(true)}

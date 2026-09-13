@@ -442,13 +442,13 @@ function computePointDistance(ptsA: Point[], ptsB: Point[]): number {
   return sum / len;
 }
 
-// Reverse point order for bidirectional matching
+// Reverse point order for bidirectional stroke traversal matching
 function reversePoints(pts: Point[]): Point[] {
   return [...pts].reverse();
 }
 
-// Point Cloud Distance (Greedy closest-point matching, order-independent)
-function computeCloudDistance(ptsA: Point[], ptsB: Point[]): number {
+// One-way closest-point matching
+function computeOneWayCloudDistance(ptsA: Point[], ptsB: Point[]): number {
   let sum = 0;
   for (const a of ptsA) {
     let minD = Infinity;
@@ -461,9 +461,30 @@ function computeCloudDistance(ptsA: Point[], ptsB: Point[]): number {
   return sum / ptsA.length;
 }
 
+// Two-way (Bidirectional) Hausdorff / Chamfer Distance
+// Ensures candidate matches template AND template matches candidate completely.
+// Rejects random squiggles, loops, and partial lines that lack true letter structure.
+function computeBiCloudDistance(ptsA: Point[], ptsB: Point[]): number {
+  const aToB = computeOneWayCloudDistance(ptsA, ptsB);
+  const bToA = computeOneWayCloudDistance(ptsB, ptsA);
+  return (aToB + bToA) / 2;
+}
+
+// Calculate total path length of normalized points
+function computePathLength(pts: Point[]): number {
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) {
+    len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  }
+  return len;
+}
+
 /**
  * Recognizes a drawn letter gesture from one or more raw point strokes.
- * Returns the recognized letter, score/confidence, points value, and center coordinate.
+ * Requires the letter to be drawn correctly in:
+ * 1) Upright standard orientation, OR
+ * 2) Reverse (upside down: 180° rotated or vertically inverted) orientation.
+ * Any drawing that is not the alphabet and correctly drawn will be rejected and return null.
  */
 export function recognizeAlphabetGesture(strokes: Point[][]): RecognizedLetter | null {
   if (!strokes || strokes.length === 0) return null;
@@ -478,57 +499,93 @@ export function recognizeAlphabetGesture(strokes: Point[][]): RecognizedLetter |
 
   if (allRawPoints.length < 5) return null;
 
-  // Check bounding box size - reject micro-taps or accidental shakes
+  // Check bounding box size - reject micro-taps or tiny wiggles
   const norm = normalizePoints(allRawPoints);
-  if (norm.width < 28 && norm.height < 28) {
-    return null; // Too small, likely a click or tiny wiggle
+  if (norm.width < 32 && norm.height < 32) {
+    return null; // Too small to be a deliberate letter drawing
   }
 
   // Resample combined points to 32 points
   const candidatePts = resampleStroke(allRawPoints, 32);
   const candidateNorm = normalizePoints(candidatePts).points;
-  const candidateRev = reversePoints(candidateNorm);
+  const candidatePathLength = computePathLength(candidateNorm);
 
   const aspectRatio = norm.width / Math.max(1, norm.height);
 
+  // Candidate representations to test:
+  // 1. Upright: Normal orientation
+  // 2. Reverse (upside-down): 180° rotation (x -> -x, y -> -y)
+  // 3. Reverse (upside-down): Vertical flip (y -> -y)
+  const orientations: { name: string; pts: Point[]; ptsRev: Point[]; aspRatio: number }[] = [
+    {
+      name: 'upright',
+      pts: candidateNorm,
+      ptsRev: reversePoints(candidateNorm),
+      aspRatio: aspectRatio,
+    },
+    {
+      name: 'upside_down_180',
+      pts: candidateNorm.map((p) => ({ x: -p.x, y: -p.y })),
+      ptsRev: reversePoints(candidateNorm.map((p) => ({ x: -p.x, y: -p.y }))),
+      aspRatio: aspectRatio,
+    },
+    {
+      name: 'upside_down_flip',
+      pts: candidateNorm.map((p) => ({ x: p.x, y: -p.y })),
+      ptsRev: reversePoints(candidateNorm.map((p) => ({ x: p.x, y: -p.y }))),
+      aspRatio: aspectRatio,
+    },
+  ];
+
   let bestLetter = '';
   let bestScore = -Infinity;
+  const isMultiStroke = strokes.length > 1;
 
   for (const tmpl of LETTER_TEMPLATES) {
-    // Aspect ratio filter for narrow letters like 'I'
-    if (tmpl.maxAspectRatio && aspectRatio > tmpl.maxAspectRatio) {
+    const tmplPathLength = computePathLength(tmpl.points);
+
+    // Path length ratio check: prevents a simple straight line from matching complex letters
+    const lenRatio = candidatePathLength / Math.max(1, tmplPathLength);
+    if (lenRatio < 0.42 || lenRatio > 2.4) {
       continue;
     }
-    if (tmpl.minAspectRatio && aspectRatio < tmpl.minAspectRatio) {
-      continue;
-    }
 
-    // Measure sequential distance (forward and reverse)
-    const distFwd = computePointDistance(candidateNorm, tmpl.points);
-    const distRev = computePointDistance(candidateRev, tmpl.points);
-    const seqDist = Math.min(distFwd, distRev);
+    for (const orient of orientations) {
+      // Aspect ratio constraints (e.g., letter I must be tall/narrow)
+      if (tmpl.maxAspectRatio && orient.aspRatio > tmpl.maxAspectRatio) {
+        continue;
+      }
+      if (tmpl.minAspectRatio && orient.aspRatio < tmpl.minAspectRatio) {
+        continue;
+      }
 
-    // Measure point cloud distance
-    const cloudDist = computeCloudDistance(candidateNorm, tmpl.points);
+      // Sequential distance (forward and reversed traversal)
+      const distFwd = computePointDistance(orient.pts, tmpl.points);
+      const distRev = computePointDistance(orient.ptsRev, tmpl.points);
+      const seqDist = Math.min(distFwd, distRev);
 
-    // Adaptive blended distance: prioritize point-cloud shape matching if multi-stroke
-    const isMultiStroke = strokes.length > 1;
-    const combinedDist = isMultiStroke
-      ? cloudDist * 0.8 + seqDist * 0.2
-      : seqDist * 0.55 + cloudDist * 0.45;
+      // Two-way bidirectional cloud distance
+      const biCloudDist = computeBiCloudDistance(orient.pts, tmpl.points);
 
-    // Convert distance to score (0 to 1, higher is better)
-    // 0 distance = 1.0; 40 distance = 0.5; 80 distance = 0.0
-    const score = Math.max(0, 1 - combinedDist / 50);
+      // Blended distance: for multi-stroke, bidirectional cloud distance is dominant
+      const combinedDist = isMultiStroke
+        ? biCloudDist * 0.75 + seqDist * 0.25
+        : seqDist * 0.5 + biCloudDist * 0.5;
 
-    if (score > bestScore) {
-      bestScore = score;
-      bestLetter = tmpl.letter;
+      // Score scale: 0 distance = 1.0; 25 distance = 0.5; >50 distance = 0.0
+      const score = Math.max(0, 1 - combinedDist / 38);
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestLetter = tmpl.letter;
+      }
     }
   }
 
-  // Minimum confidence threshold to avoid false positives on random scribbles
-  if (bestScore >= 0.52 && bestLetter) {
+  // Strict confidence threshold:
+  // Must be a genuine alphabet shape in upright or upside-down orientation.
+  // Rejects arbitrary scribbles, zigzags, random shapes, and incomplete sketches.
+  if (bestScore >= 0.58 && bestLetter) {
     const points = getAlphabetPoints(bestLetter);
     return {
       letter: bestLetter,
