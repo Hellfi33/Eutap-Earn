@@ -341,6 +341,16 @@ export default function App() {
     }));
   };
 
+  // Secret ABCD Reward: Player gestures any alphabet A-Z on the tap interface
+  // Letter A = 100,000 pts, B = 200,000 pts, ... Z = 2,600,000 pts (100k * 26)
+  const handleAlphabetGestureReward = (letter: string, rewardPoints: number) => {
+    setState((prev) => ({
+      ...prev,
+      coins: prev.coins + rewardPoints,
+      totalEarned: prev.totalEarned + rewardPoints,
+    }));
+  };
+
   // Boosters: all costs/charges are strictly in thousands of points
   const handleBuyFullEnergy = (cost: number) => {
     setState((prev) => {
@@ -489,6 +499,7 @@ export default function App() {
             spinCount={state.spinCount}
             nextSpinRefillTime={state.nextSpinRefillTime}
             onMultiTap={handleMultiTap}
+            onAlphabetGestureReward={handleAlphabetGestureReward}
             floatingNumbers={floatingNumbers}
             onOpenDailyReward={() => setShowDailyReward(true)}
             onOpenDailyCipher={() => setShowDailyCipher(true)}

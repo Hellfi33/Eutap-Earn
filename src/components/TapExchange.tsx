@@ -6,6 +6,7 @@ import { formatMilTapPoints, formatTapCap } from '../data/tiers';
 import { getDailyCipherCountdown } from '../data/ciphers';
 import { getDailyComboCountdown } from '../data/combo';
 import { getSpinRefillCountdown } from '../data/spinWheel';
+import { AlphabetGestureLayer } from './AlphabetGestureLayer';
 
 interface TapExchangeProps {
   coins: number;
@@ -22,6 +23,7 @@ interface TapExchangeProps {
   spinCount: number;
   nextSpinRefillTime: number;
   onMultiTap: (points: { clientX: number; clientY: number }[]) => void;
+  onAlphabetGestureReward: (letter: string, points: number) => void;
   floatingNumbers: FloatingTapNumber[];
   onOpenDailyReward: () => void;
   onOpenDailyCipher: () => void;
@@ -47,6 +49,7 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
   spinCount,
   nextSpinRefillTime,
   onMultiTap,
+  onAlphabetGestureReward,
   floatingNumbers,
   onOpenDailyReward,
   onOpenDailyCipher,
@@ -58,8 +61,6 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
 }) => {
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [isPressing, setIsPressing] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const lastTouchTimeRef = useRef<number>(0);
   const [cipherCountdown, setCipherCountdown] = useState<string>(getDailyCipherCountdown());
   const [comboCountdown, setComboCountdown] = useState<string>(getDailyComboCountdown());
   const [spinCountdown, setSpinCountdown] = useState<string>('');
@@ -77,75 +78,18 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
     return () => clearInterval(timer);
   }, [nextSpinRefillTime]);
 
-  // Multi-touch handler for fast finger tapping
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    lastTouchTimeRef.current = Date.now();
-    if (energy <= 0) return;
-
-    setIsPressing(true);
-    const rect = e.currentTarget.getBoundingClientRect();
-    const touches = Array.from(e.changedTouches) as React.Touch[];
-
-    if (touches.length > 0) {
-      const firstTouch = touches[0];
-      const x = firstTouch.clientX - rect.left;
-      const y = firstTouch.clientY - rect.top;
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
-      const rotateX = Math.max(-12, Math.min(12, ((y - centerY) / centerY) * -12));
-      const rotateY = Math.max(-12, Math.min(12, ((x - centerX) / centerX) * 12));
-      setTilt({ x: rotateX, y: rotateY });
-    }
-
-    const points = touches.map((t) => ({
-      clientX: t.clientX,
-      clientY: t.clientY,
-    }));
-
-    onMultiTap(points);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    lastTouchTimeRef.current = Date.now();
-    setIsPressing(false);
-    setTilt({ x: 0, y: 0 });
-  };
-
-  // Mouse click handler for desktop only
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Ignore synthetic mouse events fired by mobile browsers after touch to prevent doubling points
-    if (Date.now() - lastTouchTimeRef.current < 750) {
-      return;
-    }
-    e.preventDefault();
-    e.stopPropagation();
-    if (energy <= 0) return;
-
-    setIsPressing(true);
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    const rotateX = Math.max(-12, Math.min(12, ((y - centerY) / centerY) * -12));
-    const rotateY = Math.max(-12, Math.min(12, ((x - centerX) / centerX) * 12));
-    setTilt({ x: rotateX, y: rotateY });
-
-    onMultiTap([{ clientX: e.clientX, clientY: e.clientY }]);
-  };
-
-  const handleMouseUp = () => {
-    setIsPressing(false);
-    setTilt({ x: 0, y: 0 });
-  };
-
   const energyPercentage = Math.max(0, Math.min(100, (energy / maxEnergy) * 100));
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-between px-3 py-1.5 select-none overflow-hidden">
+    <AlphabetGestureLayer
+      onReward={onAlphabetGestureReward}
+      onTapMascot={onMultiTap}
+      energy={energy}
+      isPressingMascot={isPressing}
+      setIsPressingMascot={setIsPressing}
+      setTilt={setTilt}
+    >
+      <div className="w-full h-full flex flex-col items-center justify-between px-3 py-1.5 select-none overflow-hidden">
       {/* Top 4 Quick Feature Cards */}
       <div className="w-full max-w-sm grid grid-cols-4 gap-1 sm:gap-1.5 shrink-0">
         {/* Daily reward */}
@@ -368,15 +312,8 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
 
       {/* Central Tap Character (Futuristic Hologram Circle) - Dynamically fits available height */}
       <div
-        ref={containerRef}
         id="tap-mascot-container"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        className="relative flex-1 min-h-0 flex items-center justify-center cursor-pointer touch-none select-none my-1"
+        className="relative flex-1 min-h-0 flex items-center justify-center cursor-pointer select-none my-1"
         style={{ perspective: 1000 }}
       >
         {/* Outer glowing sci-fi rings */}
@@ -475,6 +412,7 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
           />
         </div>
       </div>
-    </div>
+      </div>
+    </AlphabetGestureLayer>
   );
 };
