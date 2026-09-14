@@ -13,6 +13,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenTierModal: () => void;
   onOpenBoost: () => void;
+  stage?: number;
   goldCoinImg: string;
 }
 
@@ -26,9 +27,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenTierModal,
   onOpenBoost,
+  stage = 1,
   goldCoinImg,
 }) => {
-  const currentTier = getTierByCoins(totalEarned);
+  const currentTier = getTierByCoins(totalEarned, stage);
+  const isStage2 = stage === 2;
   const tierProgress = Math.min(
     100,
     Math.max(
@@ -72,8 +75,16 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Center Ticker & Tap Rate */}
       <div className="flex items-center">
-        <div className="bg-[#121620] border border-white/10 rounded-full py-0.5 sm:py-1 px-2 sm:px-2.5 flex items-center gap-1.5 shadow-inner">
-          <span className="text-[10px] sm:text-[11px] font-black tracking-wider text-amber-300">EUTAP</span>
+        <div className={`border rounded-full py-0.5 sm:py-1 px-2 sm:px-2.5 flex items-center gap-1.5 shadow-inner transition ${
+          isStage2
+            ? 'bg-[#0e0a24] border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+            : 'bg-[#121620] border-white/10'
+        }`}>
+          <span className={`text-[10px] sm:text-[11px] font-black tracking-wider ${
+            isStage2 ? 'text-cyan-300' : 'text-amber-300'
+          }`}>
+            {isStage2 ? 'STAGE II' : 'EUTAP'}
+          </span>
           <div className="h-2.5 w-px bg-white/15" />
           <div className="flex items-center gap-1">
             <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider">TAP</span>
@@ -83,7 +94,9 @@ export const Header: React.FC<HeaderProps> = ({
               referrerPolicy="no-referrer"
               className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full"
             />
-            <span className="text-[11px] sm:text-xs font-black text-amber-400">+{tapPower}</span>
+            <span className={`text-[11px] sm:text-xs font-black ${
+              isStage2 ? 'text-cyan-400' : 'text-amber-400'
+            }`}>+{tapPower}</span>
           </div>
           <button
             id="quick-boost-btn"

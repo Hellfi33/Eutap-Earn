@@ -7,6 +7,7 @@ interface AlphabetGestureLayerProps {
   onReward: (letter: string, points: number) => void;
   canReward?: boolean;
   onTapMascot: (touchPoints: { clientX: number; clientY: number }[]) => void;
+  onOpenMorseTerminal?: () => void;
   energy: number;
   isPressingMascot: boolean;
   setIsPressingMascot: (val: boolean) => void;
@@ -26,6 +27,7 @@ export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
   onReward,
   canReward = true,
   onTapMascot,
+  onOpenMorseTerminal,
   energy,
   setIsPressingMascot,
   setTilt,
@@ -41,6 +43,27 @@ export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
   const currentStrokeRef = useRef<Point[]>([]);
   const completedStrokesRef = useRef<Point[][]>([]);
   const gestureTimeoutRef = useRef<number | null>(null);
+
+  // 5-second screen hold for Secret Morse Terminal
+  const screenHoldTimerRef = useRef<number | null>(null);
+  const screenHoldIntervalRef = useRef<number | null>(null);
+  const [screenHoldProgress, setScreenHoldProgress] = useState(0);
+  const [isHoldingScreen, setIsHoldingScreen] = useState(false);
+  const [holdScreenPos, setHoldScreenPos] = useState<{ x: number; y: number } | null>(null);
+
+  const cancelScreenHold = useCallback(() => {
+    if (screenHoldTimerRef.current) {
+      clearTimeout(screenHoldTimerRef.current);
+      screenHoldTimerRef.current = null;
+    }
+    if (screenHoldIntervalRef.current) {
+      clearInterval(screenHoldIntervalRef.current);
+      screenHoldIntervalRef.current = null;
+    }
+    setIsHoldingScreen(false);
+    setScreenHoldProgress(0);
+    setHoldScreenPos(null);
+  }, []);
 
   // Floating secret reward discovery toasts
   const [activeToasts, setActiveToasts] = useState<SecretRewardToast[]>([]);
@@ -136,6 +159,30 @@ export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
       }
     }
 
+    // Start 5-second screen hold countdown for Morse Terminal
+    if (onOpenMorseTerminal) {
+      cancelScreenHold();
+      setHoldScreenPos({ x: e.clientX, y: e.clientY });
+      const holdStart = Date.now();
+
+      screenHoldIntervalRef.current = window.setInterval(() => {
+        const elapsed = Date.now() - holdStart;
+        const pct = Math.min(100, (elapsed / 5000) * 100);
+        setScreenHoldProgress(pct);
+        if (pct >= 8) {
+          setIsHoldingScreen(true);
+        }
+      }, 50);
+
+      screenHoldTimerRef.current = window.setTimeout(() => {
+        cancelScreenHold();
+        setIsPressingMascot(false);
+        setTilt({ x: 0, y: 0 });
+        soundFx.playReward();
+        onOpenMorseTerminal();
+      }, 5000);
+    }
+
     // Clear any pending gesture evaluation timer if drawing another stroke
     if (gestureTimeoutRef.current) {
       clearTimeout(gestureTimeoutRef.current);
@@ -156,12 +203,15 @@ export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
 
     const distFromStart = Math.hypot(x - startPosRef.current.x, y - startPosRef.current.y);
 
-    // If movement exceeds threshold, this is a drawing gesture
-    if (!isGesturingRef.current && distFromStart > 18) {
-      isGesturingRef.current = true;
-      // Revert mascot press state so regular taps don't waste energy while gesturing
-      setIsPressingMascot(false);
-      setTilt({ x: 0, y: 0 });
+    // If movement exceeds threshold, this is a drawing gesture -> cancel 5-second screen hold
+    if (distFromStart > 18) {
+      cancelScreenHold();
+      if (!isGesturingRef.current) {
+        isGesturingRef.current = true;
+        // Revert mascot press state so regular taps don't waste energy while gesturing
+        setIsPressingMascot(false);
+        setTilt({ x: 0, y: 0 });
+      }
     }
 
     if (isGesturingRef.current) {
@@ -173,6 +223,8 @@ export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isPointerDownRef.current) return;
     isPointerDownRef.current = false;
+
+    cancelScreenHold();
 
     if (isGesturingRef.current) {
       // Completed a stroke of an invisible gesture
@@ -204,6 +256,7 @@ export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
   const handlePointerCancel = () => {
     isPointerDownRef.current = false;
     isGesturingRef.current = false;
+    cancelScreenHold();
     setIsPressingMascot(false);
     setTilt({ x: 0, y: 0 });
     resetStrokes();
@@ -268,6 +321,68 @@ export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
           </div>
         );
       })}
+
+      {/* 5-Second Screen Hold Terminal Unlock HUD */}
+      {isHoldingScreen && holdScreenPos && (
+        <div
+          style={{
+            left: `${holdScreenPos.x}px`,
+            top: `${holdScreenPos.y}px`,
+            transform: 'translate(-50%, -50%)',
+          }}
+          className="fixed z-50 pointer-events-none flex flex-col items-center animate-in zoom-in-75 duration-150 font-sans"
+        >
+          {/* Progress Circular Radar */}
+          <div className="relative w-28 h-28 flex items-center justify-center">
+            {/* Pulsing outer aura */}
+            <div className="absolute inset-0 rounded-full bg-cyan-500/20 animate-ping" />
+            <div className="absolute inset-1 rounded-full bg-emerald-500/15 blur-sm" />
+
+            <svg className="w-28 h-28 -rotate-90">
+              <circle
+                cx="56"
+                cy="56"
+                r="44"
+                stroke="rgba(255,255,255,0.15)"
+                strokeWidth="6"
+                fill="rgba(10, 15, 26, 0.85)"
+              />
+              <circle
+                cx="56"
+                cy="56"
+                r="44"
+                stroke="url(#screenHoldGrad)"
+                strokeWidth="6"
+                strokeDasharray="276"
+                strokeDashoffset={276 - (276 * screenHoldProgress) / 100}
+                strokeLinecap="round"
+                fill="none"
+              />
+              <defs>
+                <linearGradient id="screenHoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#06b6d4" />
+                  <stop offset="100%" stopColor="#10b981" />
+                </linearGradient>
+              </defs>
+            </svg>
+
+            {/* Center Terminal Countdown */}
+            <div className="absolute flex flex-col items-center justify-center">
+              <span className="text-xl font-black text-cyan-300 font-['Rajdhani',sans-serif]">
+                {Math.max(1, Math.ceil((5000 - (screenHoldProgress / 100) * 5000) / 1000))}s
+              </span>
+              <span className="text-[8px] font-black text-emerald-400 tracking-wider uppercase">
+                HOLD
+              </span>
+            </div>
+          </div>
+
+          {/* Subtext Pill */}
+          <div className="mt-2 px-3 py-1 rounded-full bg-black/90 border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.4)] text-[10px] font-bold text-cyan-200 tracking-wide whitespace-nowrap">
+            INITIALIZING MORSE TERMINAL...
+          </div>
+        </div>
+      )}
     </div>
   );
 };

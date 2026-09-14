@@ -15,6 +15,7 @@ export const INITIAL_STATE: GameState = {
   energyRechargeRate: 1,
   lastEnergyTimestamp: Date.now(),
   critChance: 0.02,
+  stage: 1,
   reserveBalance: 80.00,
   diamonds: 0,
 
@@ -97,6 +98,7 @@ export function loadGameState(): GameState {
       ...parsed,
       tapLevel: currentTier.level,
       maxEnergy: targetMaxEnergy,
+      stage: typeof parsed.stage === 'number' ? parsed.stage : 1,
       reserveBalance: typeof parsed.reserveBalance === 'number' ? parsed.reserveBalance : 80.00,
       diamonds: typeof parsed.diamonds === 'number' ? parsed.diamonds : 0,
       energy: restoredEnergy,

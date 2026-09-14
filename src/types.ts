@@ -63,6 +63,9 @@ export interface GameState {
   lastEnergyTimestamp: number;
   critChance: number; // e.g., 0.05
   
+  // Stage (1 = Standard 20 Levels, 2 = Quantum Upgraded 30 Levels)
+  stage: number;
+  
   // Reserves and Special Currency
   reserveBalance: number; // $80.00 base reserve balance for every player
   diamonds: number; // Diamonds currency earned by player

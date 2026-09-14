@@ -33,6 +33,16 @@ import { ConnectWalletModal } from './components/ConnectWalletModal';
 import { TierModal } from './components/TierModal';
 import { SettingsModal } from './components/SettingsModal';
 
+// Secret Morse Code & Stage Modals
+import { MorseTerminalModal } from './components/MorseTerminalModal';
+import { SecretReserveWithdrawalModal } from './components/SecretReserveWithdrawalModal';
+import { SecretDiamondWheelModal } from './components/SecretDiamondWheelModal';
+import { BalanceDebitModal } from './components/BalanceDebitModal';
+import { LuckyChanceWheelModal } from './components/LuckyChanceWheelModal';
+import { StageEvolutionModal } from './components/StageEvolutionModal';
+import { MorseCommandId } from './data/morseCommands';
+import { getTiersList, getLevelTapCap, STAGE_2_TIERS } from './data/tiers';
+
 export default function App() {
   const [state, setState] = useState<GameState>(() => loadGameState());
   const [activeTab, setActiveTab] = useState<TabType>('exchange');
@@ -47,6 +57,16 @@ export default function App() {
   const [showWallet, setShowWallet] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Secret Morse Modals & Execution States
+  const [showMorseTerminal, setShowMorseTerminal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showDiamondWheelModal, setShowDiamondWheelModal] = useState(false);
+  const [showDebitModal, setShowDebitModal] = useState(false);
+  const [showLuckyChanceModal, setShowLuckyChanceModal] = useState(false);
+  const [showStageEvolutionModal, setShowStageEvolutionModal] = useState(false);
+  const [isAutoTapping, setIsAutoTapping] = useState(false);
+  const [morseToastMessage, setMorseToastMessage] = useState<string | null>(null);
 
   // Sync soundFx config
   useEffect(() => {
@@ -494,10 +514,139 @@ export default function App() {
     soundFx.playClick();
     const cleanState = resetGameState();
     setState(cleanState);
+    setIsAutoTapping(false);
   };
 
+  // Morse Code Commands Dispatcher
+  const handleExecuteMorseCommand = (commandId: MorseCommandId) => {
+    switch (commandId) {
+      case 'auto_tap':
+        setIsAutoTapping(true);
+        setMorseToastMessage('⚡ AUTO-TAP ENGAGED: Coins streaming continuously!');
+        break;
+
+      case 'stop':
+        setIsAutoTapping(false);
+        setMorseToastMessage('🛑 AUTO-TAP STOPPED: Manual tap restored.');
+        break;
+
+      case 'withdraw':
+        setShowWithdrawModal(true);
+        break;
+
+      case 'diamond':
+        setShowDiamondWheelModal(true);
+        break;
+
+      case 'debit':
+        setShowDebitModal(true);
+        break;
+
+      case 'spin':
+        setShowLuckyChanceModal(true);
+        break;
+
+      case 'level_up': {
+        const stage = state.stage || 1;
+        const tiers = getTiersList(stage);
+        const currentLvl = state.tapLevel;
+        const nextTier = tiers[Math.min(currentLvl + 1, tiers.length - 1)];
+        const targetCoins = nextTier.minCoins;
+        const ptsEarned = Math.max(100000, targetCoins - state.totalEarned);
+        const newLevel = Math.min(tiers.length - 1, currentLvl + 1);
+        const newCap = getLevelTapCap(newLevel, stage);
+
+        setState((prev) => ({
+          ...prev,
+          coins: prev.coins + ptsEarned,
+          totalEarned: prev.totalEarned + ptsEarned,
+          tapLevel: newLevel,
+          maxEnergy: newCap,
+          energy: newCap,
+        }));
+        soundFx.playLevelUp();
+        setMorseToastMessage(`LEVEL UP COMPLETED! +${ptsEarned.toLocaleString()} PTS (Level ${newLevel})`);
+        break;
+      }
+
+      case 'next_stage': {
+        const upgradedStage = 2;
+        const newCap = getLevelTapCap(state.tapLevel, upgradedStage);
+
+        setState((prev) => ({
+          ...prev,
+          stage: upgradedStage,
+          maxEnergy: Math.max(prev.maxEnergy, newCap),
+          energy: Math.max(prev.energy, newCap),
+        }));
+        soundFx.playReward();
+        setShowStageEvolutionModal(true);
+        setMorseToastMessage('STAGE II ACTIVATED: QUANTUM NEXUS WITH 30 LEVELS & UPGRADED SPECTRUM!');
+        break;
+      }
+    }
+  };
+
+  // Secret Modal Handlers
+  const handleWithdrawReserve = (amount: number, address: string, network: string) => {
+    setState((prev) => ({
+      ...prev,
+      reserveBalance: Math.max(0, prev.reserveBalance - amount),
+    }));
+    setMorseToastMessage(`WITHDRAWAL PROCESSED: $${amount.toFixed(2)} sent to ${network} wallet`);
+  };
+
+  const handleWinDiamonds = (amount: number) => {
+    setState((prev) => ({
+      ...prev,
+      diamonds: prev.diamonds + amount,
+    }));
+    setMorseToastMessage(`DIAMOND WHEEL REWARD: +${amount} 💎 Added to stash!`);
+  };
+
+  const handleDebitCoins = (amount: number) => {
+    setState((prev) => ({
+      ...prev,
+      coins: Math.max(0, prev.coins - amount),
+    }));
+    setMorseToastMessage(`DEBIT APPLIED: -${amount.toLocaleString()} points deducted from balance`);
+  };
+
+  const handleLuckyChanceReward = (reward: { type: 'points' | 'diamonds'; amount: number }) => {
+    setState((prev) => ({
+      ...prev,
+      coins: reward.type === 'points' ? prev.coins + reward.amount : prev.coins,
+      totalEarned: reward.type === 'points' ? prev.totalEarned + reward.amount : prev.totalEarned,
+      diamonds: reward.type === 'diamonds' ? prev.diamonds + reward.amount : prev.diamonds,
+    }));
+    if (reward.type === 'points') {
+      setMorseToastMessage(`LUCKY SPIN REWARD: +${(reward.amount / 1000000).toLocaleString()}M Points!`);
+    } else {
+      setMorseToastMessage(`LUCKY SPIN REWARD: +${reward.amount} Diamonds!`);
+    }
+  };
+
+  const isStage2 = state.stage === 2;
+
   return (
-    <div className="h-[100dvh] max-h-[100dvh] w-full max-w-md mx-auto bg-[#0b0e14] text-slate-100 flex flex-col justify-between relative overflow-hidden">
+    <div
+      className={`h-[100dvh] max-h-[100dvh] w-full max-w-md mx-auto text-slate-100 flex flex-col justify-between relative overflow-hidden transition-colors duration-500 ${
+        isStage2
+          ? 'bg-[#070414] shadow-[0_0_80px_rgba(6,182,212,0.18)] border-x border-cyan-500/20'
+          : 'bg-[#0b0e14]'
+      }`}
+    >
+      {/* Toast Notification Banner */}
+      {morseToastMessage && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-xl bg-black/95 border border-cyan-400/80 shadow-[0_0_25px_rgba(6,182,212,0.5)] text-cyan-200 text-xs font-black tracking-wider uppercase flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-none text-center max-w-[90vw]">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+          </span>
+          <span>{morseToastMessage}</span>
+        </div>
+      )}
+
       {/* Top Fixed Header */}
       <Header
         coins={state.coins}
@@ -509,6 +658,7 @@ export default function App() {
         onOpenSettings={() => setShowSettings(true)}
         onOpenTierModal={() => setShowTierModal(true)}
         onOpenBoost={() => setShowBoost(true)}
+        stage={state.stage || 1}
         goldCoinImg={goldCoin}
       />
 
@@ -543,6 +693,10 @@ export default function App() {
             onOpenDailyCombo={() => setShowDailyCombo(true)}
             onOpenLuckyWheel={() => setShowLuckyWheel(true)}
             onOpenBoost={() => setShowBoost(true)}
+            onOpenMorseTerminal={() => setShowMorseTerminal(true)}
+            isAutoTapping={isAutoTapping}
+            onStopAutoTap={() => setIsAutoTapping(false)}
+            stage={state.stage || 1}
             mascotImg={mascotAvatar}
             goldCoinImg={goldCoin}
           />
@@ -691,6 +845,7 @@ export default function App() {
           onClose={() => setShowTierModal(false)}
           totalEarned={state.totalEarned}
           tapLevel={state.tapLevel}
+          stage={state.stage || 1}
         />
       )}
 
@@ -703,6 +858,62 @@ export default function App() {
           onToggleSound={() => setState((p) => ({ ...p, soundEnabled: !p.soundEnabled }))}
           onToggleHaptics={() => setState((p) => ({ ...p, hapticsEnabled: !p.hapticsEnabled }))}
           onResetGame={handleResetGame}
+        />
+      )}
+
+      {/* Secret Morse Code Terminal Modal */}
+      {showMorseTerminal && (
+        <MorseTerminalModal
+          isOpen={showMorseTerminal}
+          onClose={() => setShowMorseTerminal(false)}
+          onExecuteCommand={handleExecuteMorseCommand}
+        />
+      )}
+
+      {/* Secret Reserve Withdrawal Modal */}
+      {showWithdrawModal && (
+        <SecretReserveWithdrawalModal
+          isOpen={showWithdrawModal}
+          onClose={() => setShowWithdrawModal(false)}
+          reserveBalance={state.reserveBalance}
+          onWithdraw={handleWithdrawReserve}
+        />
+      )}
+
+      {/* Secret Diamond Wheel Modal (Wins 1-7 diamonds, restricted from 8-10) */}
+      {showDiamondWheelModal && (
+        <SecretDiamondWheelModal
+          isOpen={showDiamondWheelModal}
+          onClose={() => setShowDiamondWheelModal(false)}
+          onWinDiamonds={handleWinDiamonds}
+        />
+      )}
+
+      {/* Balance Debit Modal */}
+      {showDebitModal && (
+        <BalanceDebitModal
+          isOpen={showDebitModal}
+          onClose={() => setShowDebitModal(false)}
+          currentCoins={state.coins}
+          onDebitCoins={handleDebitCoins}
+        />
+      )}
+
+      {/* 9-Chart Lucky Chance Wheel Modal (Points in Millions & Diamonds in Units/Tens) */}
+      {showLuckyChanceModal && (
+        <LuckyChanceWheelModal
+          isOpen={showLuckyChanceModal}
+          onClose={() => setShowLuckyChanceModal(false)}
+          onWinReward={handleLuckyChanceReward}
+        />
+      )}
+
+      {/* Stage Evolution Modal (Stage II Quantum Nexus Upgrade) */}
+      {showStageEvolutionModal && (
+        <StageEvolutionModal
+          isOpen={showStageEvolutionModal}
+          onClose={() => setShowStageEvolutionModal(false)}
+          stage={state.stage || 2}
         />
       )}
     </div>

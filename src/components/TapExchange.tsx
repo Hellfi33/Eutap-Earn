@@ -33,6 +33,10 @@ interface TapExchangeProps {
   onOpenDailyCombo: () => void;
   onOpenLuckyWheel: () => void;
   onOpenBoost: () => void;
+  onOpenMorseTerminal?: () => void;
+  isAutoTapping?: boolean;
+  onStopAutoTap?: () => void;
+  stage?: number;
   mascotImg: string;
   goldCoinImg: string;
 }
@@ -61,6 +65,10 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
   onOpenDailyCombo,
   onOpenLuckyWheel,
   onOpenBoost,
+  onOpenMorseTerminal,
+  isAutoTapping = false,
+  onStopAutoTap,
+  stage = 1,
   mascotImg,
   goldCoinImg,
 }) => {
@@ -137,14 +145,42 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
       onReward={onAlphabetGestureReward}
       canReward={canAbcdReward}
       onTapMascot={onMultiTap}
+      onOpenMorseTerminal={onOpenMorseTerminal}
       energy={energy}
       isPressingMascot={isPressing}
       setIsPressingMascot={setIsPressing}
       setTilt={setTilt}
     >
       <div className="w-full h-full flex flex-col items-center justify-between px-3 py-1.5 select-none overflow-hidden">
-      {/* Top 4 Quick Feature Cards */}
-      <div className="w-full max-w-sm grid grid-cols-4 gap-1 sm:gap-1.5 shrink-0">
+        {/* Active Auto-Tap Status Banner (Shown when Auto Tap Morse command is active) */}
+        {isAutoTapping && (
+          <div className="w-full max-w-sm mb-1 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-950/90 via-teal-950 to-black border border-emerald-400/60 shadow-[0_0_20px_rgba(16,185,129,0.4)] flex items-center justify-between animate-pulse shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+              <span className="text-[11px] font-black text-emerald-300 font-['Rajdhani',sans-serif] tracking-wider uppercase">
+                ⚡ AUTO-TAP ACTIVE (MORSE EXECUTED)
+              </span>
+            </div>
+            {onStopAutoTap && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  soundFx.playClick();
+                  onStopAutoTap();
+                }}
+                className="px-2.5 py-0.5 rounded-lg bg-rose-600/90 hover:bg-rose-500 text-white text-[10px] font-black tracking-wider uppercase transition shadow active:scale-95"
+              >
+                STOP
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Top 4 Quick Feature Cards */}
+        <div className="w-full max-w-sm grid grid-cols-4 gap-1 sm:gap-1.5 shrink-0">
         {/* Daily reward */}
         <button
           id="btn-daily-reward"
