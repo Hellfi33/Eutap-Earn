@@ -379,7 +379,7 @@ export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
 
           {/* Subtext Pill */}
           <div className="mt-2 px-3 py-1 rounded-full bg-black/90 border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.4)] text-[10px] font-bold text-cyan-200 tracking-wide whitespace-nowrap">
-            INITIALIZING MORSE TERMINAL...
+            CONNECTING CIPHER PROTOCOL...
           </div>
         </div>
       )}

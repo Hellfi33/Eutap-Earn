@@ -1,47 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import { Terminal, Send, Trash2, Delete, X, Eye, HelpCircle, CheckCircle2, ShieldAlert } from 'lucide-react';
-import { MORSE_COMMANDS, matchMorseCommand, MorseCommand } from '../data/morseCommands';
+import React, { useState, useEffect, useRef } from 'react';
+import { Terminal, Send, Trash2, Delete, X, CheckCircle2, ShieldAlert, Lock } from 'lucide-react';
+import { matchMorseCommand, MorseCommand, MorseCommandId } from '../data/morseCommands';
 import { soundFx } from '../utils/audio';
 
 interface MorseTerminalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onExecuteCommand: (command: MorseCommand) => void;
+  onExecuteCommand: (commandId: MorseCommandId) => void;
 }
+
+// Full keyboard rows so no letters are given away
+const KEYBOARD_ROWS = [
+  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+  ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
+];
 
 export const MorseTerminalModal: React.FC<MorseTerminalModalProps> = ({
   isOpen,
   onClose,
   onExecuteCommand,
 }) => {
-  const [morseInput, setMorseInput] = useState('');
-  const [showGuide, setShowGuide] = useState(false);
+  const [inputBuffer, setInputBuffer] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [executedCmd, setExecutedCmd] = useState<MorseCommand | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Keyboard listener for typing *, +, -, Space, Backspace, Enter
+  // Auto-focus input when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    } else {
+      setInputBuffer('');
+      setErrorMsg(null);
+      setExecutedCmd(null);
+    }
+  }, [isOpen]);
+
+  // Instant Automatic Execution when any secret code is recognized
+  useEffect(() => {
+    if (!isOpen || !inputBuffer || executedCmd) return;
+
+    const cmd = matchMorseCommand(inputBuffer);
+    if (cmd) {
+      soundFx.playReward();
+      setExecutedCmd(cmd);
+      setErrorMsg(null);
+
+      const timer = setTimeout(() => {
+        onExecuteCommand(cmd.id);
+        setExecutedCmd(null);
+        setInputBuffer('');
+        onClose();
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [inputBuffer, isOpen, executedCmd, onExecuteCommand, onClose]);
+
+  // Keyboard listener for physical keyboard typing
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '*' || e.key === '+' || e.key === '-') {
+      if (document.activeElement === inputRef.current) {
+        if (e.key === 'Escape') onClose();
+        return;
+      }
+
+      if (e.key.length === 1 && /[a-zA-Z0-9*_\-+]/.test(e.key)) {
         e.preventDefault();
         soundFx.playClick();
-        setMorseInput((prev) => prev + e.key);
-        setErrorMsg(null);
-      } else if (e.key === ' ') {
-        e.preventDefault();
-        soundFx.playClick();
-        setMorseInput((prev) => (prev.endsWith(' ') ? prev : prev + ' '));
+        setInputBuffer((prev) => prev + e.key.toUpperCase());
         setErrorMsg(null);
       } else if (e.key === 'Backspace') {
         e.preventDefault();
         soundFx.playClick();
-        setMorseInput((prev) => prev.slice(0, -1));
+        setInputBuffer((prev) => prev.slice(0, -1));
         setErrorMsg(null);
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        handleExecute();
+        handleManualExecute();
       } else if (e.key === 'Escape') {
         onClose();
       }
@@ -49,39 +90,34 @@ export const MorseTerminalModal: React.FC<MorseTerminalModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, morseInput]);
+  }, [isOpen, inputBuffer]);
 
   if (!isOpen) return null;
-
-  const matchedCommand = matchMorseCommand(morseInput);
 
   const handleInputChar = (char: string) => {
     soundFx.playClick();
     setErrorMsg(null);
-    if (char === ' ') {
-      setMorseInput((prev) => (prev.endsWith(' ') ? prev : prev + ' '));
-    } else {
-      setMorseInput((prev) => prev + char);
-    }
+    setInputBuffer((prev) => prev + char.toUpperCase());
   };
 
   const handleBackspace = () => {
     soundFx.playClick();
     setErrorMsg(null);
-    setMorseInput((prev) => prev.slice(0, -1));
+    setInputBuffer((prev) => prev.slice(0, -1));
   };
 
   const handleClear = () => {
     soundFx.playClick();
     setErrorMsg(null);
-    setMorseInput('');
+    setInputBuffer('');
+    inputRef.current?.focus();
   };
 
-  const handleExecute = () => {
-    const cmd = matchMorseCommand(morseInput);
+  const handleManualExecute = () => {
+    const cmd = matchMorseCommand(inputBuffer);
     if (!cmd) {
       soundFx.playClick();
-      setErrorMsg('UNRECOGNIZED TRANSMISSION SEQUENCE');
+      setErrorMsg('ACCESS DENIED • INVALID PROTOCOL');
       return;
     }
 
@@ -89,140 +125,84 @@ export const MorseTerminalModal: React.FC<MorseTerminalModalProps> = ({
     setExecutedCmd(cmd);
 
     setTimeout(() => {
-      onExecuteCommand(cmd);
+      onExecuteCommand(cmd.id);
       setExecutedCmd(null);
-      setMorseInput('');
+      setInputBuffer('');
       onClose();
-    }, 900);
-  };
-
-  const handleSelectFromGuide = (code: string) => {
-    soundFx.playClick();
-    setMorseInput(code);
-    setErrorMsg(null);
+    }, 500);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-2xl bg-[#0a0e17] border-2 border-cyan-500/70 shadow-[0_0_60px_rgba(6,182,212,0.35)] overflow-hidden flex flex-col font-mono">
-        {/* Terminal Header */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg rounded-2xl bg-[#080c14] border-2 border-cyan-500/70 shadow-[0_0_60px_rgba(6,182,212,0.35)] overflow-hidden flex flex-col font-mono">
+        {/* Terminal Header - Completely Secret (No codes or descriptions shown) */}
         <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-cyan-950/80 via-slate-900 to-black border-b border-cyan-500/40">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center">
-              <Terminal className="w-4 h-4 text-cyan-400" />
+              <Lock className="w-4 h-4 text-cyan-400" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-black text-cyan-300 tracking-wider">
-                  CLASSIFIED MORSE TERMINAL
+                  CLASSIFIED TERMINAL
                 </span>
                 <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-[9px] font-bold text-cyan-300 border border-cyan-500/40 animate-pulse">
-                  ONLINE
+                  SECURE LINK
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400">Tactical 8-Command Signal Receptor</p>
+              <p className="text-[10px] text-slate-400">Authorized protocol input interface</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                setShowGuide(!showGuide);
-              }}
-              className="p-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs flex items-center gap-1 transition"
-              title="View Command Signal Codes"
-            >
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline text-[11px] font-bold">Signal Codes</span>
-            </button>
-            <button
-              onClick={() => {
-                soundFx.playClick();
-                onClose();
-              }}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              onClose();
+            }}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Collapsible Reference Signal Codes List */}
-        {showGuide && (
-          <div className="p-3 bg-black/90 border-b border-cyan-500/30 max-h-52 overflow-y-auto space-y-1.5 text-xs animate-in slide-in-from-top-2 duration-150">
-            <div className="flex items-center justify-between text-[11px] font-bold text-cyan-300 pb-1 border-b border-white/10">
-              <span>ATTACHED SIGNAL SPECIFICATION</span>
-              <span className="text-slate-400 text-[10px]">Click any code to load</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-              {MORSE_COMMANDS.map((cmd, idx) => (
-                <button
-                  key={cmd.id}
-                  onClick={() => handleSelectFromGuide(cmd.code)}
-                  className="flex items-center justify-between p-2 rounded-lg bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-800/40 text-left transition group"
-                >
-                  <div>
-                    <span className="font-bold text-slate-200 group-hover:text-cyan-300">
-                      {idx + 1}. {cmd.title}
-                    </span>
-                    <p className="text-[10px] text-slate-400 truncate max-w-[150px]">{cmd.description}</p>
-                  </div>
-                  <span className="px-2 py-1 rounded bg-black/60 font-mono text-cyan-400 font-black text-[11px] border border-cyan-700/50">
-                    {cmd.code}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Terminal Screen / Display */}
-        <div className="p-4 space-y-3 bg-[#060911]">
+        {/* Terminal Screen & Input Field */}
+        <div className="p-4 space-y-3 bg-[#05080e]">
           <div className="relative rounded-xl bg-black border border-cyan-500/40 p-3 min-h-[90px] flex flex-col justify-between shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]">
             <div className="flex items-center justify-between text-[10px] text-cyan-400/70 border-b border-cyan-900/40 pb-1">
-              <span>TRANSMISSION_INPUT_BUFFER</span>
-              <span>{morseInput.length} SYMBOLS</span>
+              <span>PROTOCOL_BUFFER_STREAM</span>
+              <span>{inputBuffer.length} CHARS</span>
             </div>
 
-            {/* Input Characters */}
-            <div className="py-2 break-all text-xl sm:text-2xl font-black tracking-widest text-cyan-300 flex flex-wrap items-center gap-1">
-              {morseInput ? (
-                morseInput.split('').map((char, i) => (
-                  <span
-                    key={i}
-                    className={`inline-block ${
-                      char === ' '
-                        ? 'w-3 h-6 bg-cyan-900/40 mx-1 rounded'
-                        : char === '*'
-                        ? 'text-amber-400 font-bold'
-                        : char === '+'
-                        ? 'text-emerald-400 font-bold'
-                        : 'text-cyan-400 font-bold'
-                    }`}
-                  >
-                    {char === ' ' ? '' : char}
-                  </span>
-                ))
-              ) : (
-                <span className="text-slate-600 text-sm font-normal">
-                  Tap buttons (*, +, -) or type morse sequence...
-                </span>
+            {/* Input Characters Display */}
+            <div className="py-2 flex items-center justify-between">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputBuffer}
+                onChange={(e) => {
+                  setInputBuffer(e.target.value.toUpperCase());
+                  setErrorMsg(null);
+                }}
+                placeholder="ENTER ACCESS CODE..."
+                className="w-full bg-transparent text-xl sm:text-2xl font-black tracking-widest text-cyan-300 placeholder:text-slate-600 outline-none uppercase font-mono"
+              />
+              {inputBuffer && (
+                <button
+                  onClick={handleClear}
+                  className="text-[10px] text-slate-400 hover:text-rose-400 flex items-center gap-0.5 ml-2 whitespace-nowrap"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>Clear</span>
+                </button>
               )}
-              <span className="inline-block w-2.5 h-6 bg-cyan-400 animate-pulse" />
             </div>
 
-            {/* Live Match / Status Bar */}
+            {/* Live Status Bar */}
             <div className="flex items-center justify-between text-[11px] pt-1 border-t border-cyan-950">
               {executedCmd ? (
-                <div className="flex items-center gap-1 text-emerald-400 font-bold animate-pulse">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>EXECUTING: {executedCmd.title.toUpperCase()}...</span>
-                </div>
-              ) : matchedCommand ? (
-                <div className="flex items-center gap-1.5 text-cyan-300 font-bold">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                  <span>RECOGNIZED: {matchedCommand.title.toUpperCase()}</span>
+                <div className="flex items-center gap-1.5 text-emerald-400 font-bold animate-pulse">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>PROTOCOL ACCEPTED • EXECUTING...</span>
                 </div>
               ) : errorMsg ? (
                 <div className="flex items-center gap-1 text-rose-400 font-bold">
@@ -230,88 +210,61 @@ export const MorseTerminalModal: React.FC<MorseTerminalModalProps> = ({
                   <span>{errorMsg}</span>
                 </div>
               ) : (
-                <span className="text-slate-500 text-[10px]">Awaiting complete signature</span>
-              )}
-
-              {morseInput && (
-                <button
-                  onClick={handleClear}
-                  className="text-[10px] text-slate-400 hover:text-rose-400 flex items-center gap-0.5"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  <span>Clear</span>
-                </button>
+                <span className="text-slate-500 text-[10px]">Awaiting classified instruction sequence</span>
               )}
             </div>
           </div>
 
-          {/* Tactical Morse Keypad */}
-          <div className="space-y-2">
-            {/* Primary Morse Symbols: * (Star), + (Plus), - (Dash) */}
-            <div className="grid grid-cols-3 gap-2">
+          {/* Neutral Complete Keypad (All 26 Alphabet Keys + Asterisk so secret codes remain 100% invisible) */}
+          <div className="space-y-1.5 select-none">
+            {KEYBOARD_ROWS.map((row, rowIdx) => (
+              <div key={rowIdx} className="flex justify-center gap-1">
+                {row.map((letter) => (
+                  <button
+                    key={letter}
+                    onClick={() => handleInputChar(letter)}
+                    className="flex-1 max-w-[42px] h-10 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 hover:border-cyan-500/60 text-slate-100 font-black text-sm transition active:scale-95 flex items-center justify-center shadow-sm"
+                  >
+                    {letter}
+                  </button>
+                ))}
+              </div>
+            ))}
+
+            {/* Control Row: Asterisk (*), Space, Backspace, Execute */}
+            <div className="flex justify-center gap-1.5 pt-1">
               <button
                 onClick={() => handleInputChar('*')}
-                className="py-4 rounded-xl bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/50 hover:border-amber-400 text-amber-300 font-black text-3xl flex flex-col items-center justify-center transition active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+                className="flex-1 h-11 rounded-xl bg-amber-950/60 hover:bg-amber-900/80 border-2 border-amber-500/70 hover:border-amber-400 text-amber-300 font-black text-2xl flex items-center justify-center transition active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.25)]"
+                title="Asterisk (*)"
               >
-                <span>*</span>
-                <span className="text-[10px] font-sans font-semibold text-amber-400/80 -mt-1">STAR / DOT</span>
-              </button>
-
-              <button
-                onClick={() => handleInputChar('+')}
-                className="py-4 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/50 hover:border-emerald-400 text-emerald-300 font-black text-3xl flex flex-col items-center justify-center transition active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
-              >
-                <span>+</span>
-                <span className="text-[10px] font-sans font-semibold text-emerald-400/80 -mt-1">PLUS</span>
-              </button>
-
-              <button
-                onClick={() => handleInputChar('-')}
-                className="py-4 rounded-xl bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/50 hover:border-cyan-400 text-cyan-300 font-black text-3xl flex flex-col items-center justify-center transition active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.15)]"
-              >
-                <span>-</span>
-                <span className="text-[10px] font-sans font-semibold text-cyan-400/80 -mt-1">DASH</span>
-              </button>
-            </div>
-
-            {/* Utility Row: Space, Backspace, Execute */}
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => handleInputChar(' ')}
-                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95"
-              >
-                <span>SPACE</span>
-                <span className="text-[10px] text-slate-500">(␣)</span>
+                *
               </button>
 
               <button
                 onClick={handleBackspace}
-                disabled={!morseInput}
-                className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition active:scale-95 disabled:opacity-40"
+                disabled={!inputBuffer}
+                className="w-16 h-11 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1 transition active:scale-95 disabled:opacity-40"
               >
                 <Delete className="w-4 h-4" />
                 <span>DEL</span>
               </button>
 
               <button
-                onClick={handleExecute}
-                disabled={!morseInput}
-                className={`py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition active:scale-95 ${
-                  matchedCommand
-                    ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-black shadow-[0_0_20px_rgba(16,185,129,0.5)] animate-pulse'
-                    : 'bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-40'
-                }`}
+                onClick={handleManualExecute}
+                disabled={!inputBuffer}
+                className="flex-[2] h-11 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-500 hover:from-cyan-500 hover:to-teal-400 text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(6,182,212,0.3)]"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>EXECUTE</span>
+                <span>EXECUTE PROTOCOL</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Footer Note */}
-        <div className="px-4 py-2 bg-black/80 border-t border-cyan-900/40 text-[10px] text-slate-400 text-center">
-          Correct Morse spelling triggers automatic command execution instantly.
+        {/* Footer Note - Completely Masked (Zero codes shown) */}
+        <div className="px-4 py-2 bg-black/90 border-t border-cyan-900/40 text-[10px] text-slate-400 text-center">
+          <span>CLASSIFIED PROTOCOL TERMINAL • ENCRYPTED CIPHER LINK</span>
         </div>
       </div>
     </div>

@@ -68,6 +68,15 @@ export default function App() {
   const [isAutoTapping, setIsAutoTapping] = useState(false);
   const [morseToastMessage, setMorseToastMessage] = useState<string | null>(null);
 
+  // Auto-dismiss transient toast messages after 1.2s so secret codes never leave persistent notices
+  useEffect(() => {
+    if (!morseToastMessage) return;
+    const timer = setTimeout(() => {
+      setMorseToastMessage(null);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [morseToastMessage]);
+
   // Sync soundFx config
   useEffect(() => {
     soundFx.enabled = state.soundEnabled;
@@ -97,6 +106,51 @@ export default function App() {
 
     return () => clearInterval(timer);
   }, []);
+
+  // AUTO-TAP STREAM ENGINE (Triggered via secret code AA**, stopped via SP**):
+  // When active, continuously increments point balance automatically by the player's tap rate
+  // exactly as if user is tapping. It stays active until player stops it.
+  useEffect(() => {
+    if (!isAutoTapping) return;
+
+    const interval = setInterval(() => {
+      setState((prev) => {
+        const now = Date.now();
+        const isTurbo = prev.turboActiveUntil > now;
+        const ratePerTap = isTurbo ? prev.tapPower * 5 : prev.tapPower;
+
+        // Visual floating tap indicator
+        setFloatingNumbers((curr) => [
+          ...curr.slice(-5),
+          {
+            id: now + Math.random(),
+            x: window.innerWidth / 2 + (Math.random() * 80 - 40),
+            y: window.innerHeight * 0.46 + (Math.random() * 40 - 20),
+            amount: ratePerTap,
+            isCrit: isTurbo,
+          },
+        ]);
+
+        const energyCost = Math.min(prev.energy, ratePerTap);
+
+        return {
+          ...prev,
+          coins: prev.coins + ratePerTap,
+          totalEarned: prev.totalEarned + ratePerTap,
+          totalTaps: prev.totalTaps + 1,
+          energy: Math.max(0, prev.energy - energyCost),
+          lastEnergyTimestamp: now,
+        };
+      });
+
+      // Subtle tap sound periodically
+      if (Math.random() < 0.25) {
+        soundFx.playTap(false);
+      }
+    }, 250); // 4 taps/sec: fast, visible streaming balance topup!
+
+    return () => clearInterval(interval);
+  }, [isAutoTapping]);
 
   // 24-Hour Automatic Daily Cycles (Cipher & Combo) & 3-Hour Lucky Spin Refill:
   useEffect(() => {
@@ -517,32 +571,43 @@ export default function App() {
     setIsAutoTapping(false);
   };
 
-  // Morse Code Commands Dispatcher
-  const handleExecuteMorseCommand = (commandId: MorseCommandId) => {
+  // Morse Code Commands Dispatcher (Secret Protocol Execution)
+  const handleExecuteMorseCommand = (commandIdOrObj: MorseCommandId | any) => {
+    const commandId: MorseCommandId =
+      typeof commandIdOrObj === 'object' && commandIdOrObj?.id
+        ? commandIdOrObj.id
+        : (commandIdOrObj as MorseCommandId);
+
     switch (commandId) {
       case 'auto_tap':
         setIsAutoTapping(true);
-        setMorseToastMessage('⚡ AUTO-TAP ENGAGED: Coins streaming continuously!');
+        soundFx.playReward();
+        setMorseToastMessage(null); // Instantly clears immediately, not shown on screen
         break;
 
       case 'stop':
         setIsAutoTapping(false);
-        setMorseToastMessage('🛑 AUTO-TAP STOPPED: Manual tap restored.');
+        soundFx.playClick();
+        setMorseToastMessage(null); // Instantly clears immediately
         break;
 
       case 'withdraw':
+        soundFx.playReward();
         setShowWithdrawModal(true);
         break;
 
       case 'diamond':
+        soundFx.playReward();
         setShowDiamondWheelModal(true);
         break;
 
       case 'debit':
+        soundFx.playReward();
         setShowDebitModal(true);
         break;
 
       case 'spin':
+        soundFx.playReward();
         setShowLuckyChanceModal(true);
         break;
 
@@ -581,7 +646,7 @@ export default function App() {
         }));
         soundFx.playReward();
         setShowStageEvolutionModal(true);
-        setMorseToastMessage('STAGE II ACTIVATED: QUANTUM NEXUS WITH 30 LEVELS & UPGRADED SPECTRUM!');
+        setMorseToastMessage('STAGE II ACTIVATED: QUANTUM NEXUS WITH 30 LEVELS!');
         break;
       }
     }

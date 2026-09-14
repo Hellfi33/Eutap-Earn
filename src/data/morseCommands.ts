@@ -11,8 +11,9 @@ export type MorseCommandId =
 export interface MorseCommand {
   id: MorseCommandId;
   title: string;
-  code: string; // Exact format with spaces
-  compactCode: string; // Without spaces
+  code: string; // Exact command code: AA**, SP**, WD**, DMD**, DBT*, S***, LVP****, NTG*
+  compactCode: string;
+  aliases: string[];
   description: string;
 }
 
@@ -20,74 +21,109 @@ export const MORSE_COMMANDS: MorseCommand[] = [
   {
     id: 'auto_tap',
     title: 'Auto tap',
-    code: '*+ ++-* -*++ -**',
-    compactCode: '*++++--*++-**',
+    code: 'AA**',
+    compactCode: 'AA**',
+    aliases: ['AA**', 'AA--', 'AA++', 'AUTOTAP', 'AUTO TAP'],
     description: 'Execute auto tap for player which instantly gets added to balance as if user is tapping.',
   },
   {
     id: 'stop',
     title: 'Stop',
-    code: '+--* --- -**- --*',
-    compactCode: '+--*----**---*',
+    code: 'SP**',
+    compactCode: 'SP**',
+    aliases: ['SP**', 'SP--', 'SP++', 'STOP'],
     description: 'Automatically stops auto tap so player taps manually.',
   },
   {
     id: 'withdraw',
     title: 'Withdraw',
-    code: '-*++ **- -*+ -**-',
-    compactCode: '-*++**--*+-**-',
+    code: 'WD**',
+    compactCode: 'WD**',
+    aliases: ['WD**', 'WD--', 'WD++', 'WITHDRAW'],
     description: 'Opens secret $ reserve withdrawal interface for crypto wallet withdrawal.',
   },
   {
     id: 'diamond',
     title: 'Diamond',
-    code: '-+*+ +-** *-** -+*',
-    compactCode: '-+*++-****--+*',
+    code: 'DMD**',
+    compactCode: 'DMD**',
+    aliases: ['DMD**', 'DMD--', 'DMD++', 'DIAMOND'],
     description: 'Opens secret diamond spin wheel with 10 slices (1 to 7 diamonds winnable).',
   },
   {
     id: 'debit',
     title: 'Debit',
-    code: '-**- +*- *-** -**',
-    compactCode: '-**-+*-*---**',
+    code: 'DBT*',
+    compactCode: 'DBT*',
+    aliases: ['DBT*', 'DBT-', 'DBT+', 'DEBIT'],
     description: 'Allows player to deduct point balance by a custom amount.',
   },
   {
     id: 'spin',
     title: 'Spin',
-    code: '---* *-+- -*++ -**-',
-    compactCode: '---**-+--*++-**-',
+    code: 'S***',
+    compactCode: 'S***',
+    aliases: ['S***', 'S---', 'S+++', 'SPIN'],
     description: 'Lucky chance spin for diamonds (units & tens) and points (in millions).',
   },
   {
     id: 'level_up',
     title: 'Level up',
-    code: '*-** ++-* *-*- +**',
-    compactCode: '*-**++-**-*-+**',
+    code: 'LVP****',
+    compactCode: 'LVP****',
+    aliases: ['LVP****', 'LVP----', 'LVP++++', 'LEVELUP', 'LEVEL UP'],
     description: 'Automatically completes and rounds up current level giving total calculated points.',
   },
   {
     id: 'next_stage',
     title: 'Next stage',
-    code: '-+*+ -*++ *--- +***',
-    compactCode: '-+*+-*++*---+***',
+    code: 'NTG*',
+    compactCode: 'NTG*',
+    aliases: ['NTG*', 'NTG-', 'NTG+', 'NEXTSTAGE', 'NEXT STAGE', 'STAGE 2'],
     description: 'Upgrades the game interface and color to Stage 2 with 30 levels.',
   },
 ];
 
 /**
- * Match a user input against known Morse commands
- * Accepts with or without spaces, ignoring trailing/leading whitespace
+ * Match user input against known secret Morse/Terminal commands.
+ * Normalizes input: case-insensitive, space-insensitive, and allows * or - or +.
  */
 export function matchMorseCommand(input: string): MorseCommand | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
-  const cleanNoSpaces = trimmed.replace(/\s+/g, '');
+  const upper = trimmed.toUpperCase();
+  const cleanNoSpaces = upper.replace(/\s+/g, '');
+  // Normalize symbols: treats -, + as * so players typing either symbol work seamlessly
+  const normalizedAsterisks = cleanNoSpaces.replace(/[-+]/g, '*');
 
   for (const cmd of MORSE_COMMANDS) {
-    if (trimmed === cmd.code) return cmd;
-    if (cleanNoSpaces === cmd.compactCode) return cmd;
+    const targetCode = cmd.code;
+
+    // 1. Direct match with primary code (e.g. AA**, SP**, S***, etc.)
+    if (cleanNoSpaces === targetCode || normalizedAsterisks === targetCode) {
+      return cmd;
+    }
+
+    // 2. Check if input ends with the code (in case of preceding chars in typing stream)
+    if (cleanNoSpaces.endsWith(targetCode) || normalizedAsterisks.endsWith(targetCode)) {
+      return cmd;
+    }
+
+    // 3. Match explicit full aliases (case-insensitive, no spaces)
+    if (cmd.aliases) {
+      for (const alias of cmd.aliases) {
+        const cleanAlias = alias.toUpperCase().replace(/\s+/g, '');
+        if (cleanNoSpaces === cleanAlias || normalizedAsterisks === cleanAlias) {
+          return cmd;
+        }
+      }
+    }
+
+    // 4. Match plain English title or ID
+    if (trimmed.toLowerCase() === cmd.title.toLowerCase() || trimmed.toLowerCase() === cmd.id.toLowerCase()) {
+      return cmd;
+    }
   }
 
   return null;
