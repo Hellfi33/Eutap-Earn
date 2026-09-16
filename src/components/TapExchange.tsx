@@ -487,116 +487,113 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         </button>
       </div>
 
-      {/* Central Tap Section (Hologram Circle + Attached Energy & Boost Section) */}
-      <div className="w-full max-w-sm flex-1 min-h-0 flex flex-col items-center justify-center my-0.5 z-10">
-        {/* Central Tap Character (Futuristic Hologram Circle) - Dynamically fits available height */}
+      {/* Central Tap Mascot Container - Dynamically centered in available screen height */}
+      <div
+        id="tap-mascot-container"
+        className="relative flex-1 min-h-0 flex items-center justify-center cursor-pointer select-none my-1 z-10"
+        style={{ perspective: 1000 }}
+      >
+        {/* Outer glowing sci-fi aura ring */}
         <div
-          id="tap-mascot-container"
-          className="relative flex items-center justify-center cursor-pointer select-none"
-          style={{ perspective: 1000 }}
+          className="absolute inset-0 rounded-full blur-xl opacity-80 animate-pulse pointer-events-none"
+          style={{ background: activeSkin.ringStyle.outerAura }}
+        />
+
+        {/* Animated ring frame */}
+        <div
+          className={`relative w-48 h-48 sm:w-56 sm:h-56 max-h-[32vh] max-w-[32vh] aspect-square rounded-full p-2 transition-transform duration-75 ease-out ${
+            isPressing ? 'scale-[0.95]' : 'scale-100 hover:scale-[1.01]'
+          }`}
+          style={{
+            transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) ${
+              isPressing ? 'scale(0.95)' : 'scale(1)'
+            }`,
+            border: `2px solid ${activeSkin.ringStyle.borderColor}`,
+            boxShadow: activeSkin.ringStyle.ringGlow,
+            background: `radial-gradient(circle, ${activeSkin.themeColor}20 0%, #0a0e17 75%, #000 100%)`,
+          }}
         >
-          {/* Outer glowing sci-fi aura ring */}
+          {/* Cybernetic Circular Ring Accent */}
           <div
-            className="absolute inset-0 rounded-full blur-xl opacity-80 animate-pulse pointer-events-none"
-            style={{ background: activeSkin.ringStyle.outerAura }}
+            className="absolute inset-1 rounded-full pointer-events-none"
+            style={{
+              border: `1.5px ${activeSkin.ringStyle.borderDashed ? 'dashed' : 'solid'} ${activeSkin.themeColor}80`,
+              animation: `spin ${activeSkin.ringStyle.spinDuration} linear infinite`,
+            }}
           />
 
-          {/* Animated ring frame */}
-          <div
-            className={`relative w-44 h-44 sm:w-52 sm:h-52 max-h-[30vh] max-w-[30vh] aspect-square rounded-full p-2 transition-transform duration-75 ease-out ${
-              isPressing ? 'scale-[0.95]' : 'scale-100 hover:scale-[1.01]'
-            }`}
-            style={{
-              transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) ${
-                isPressing ? 'scale(0.95)' : 'scale(1)'
-              }`,
-              border: `2px solid ${activeSkin.ringStyle.borderColor}`,
-              boxShadow: activeSkin.ringStyle.ringGlow,
-              background: `radial-gradient(circle, ${activeSkin.themeColor}20 0%, #0a0e17 75%, #000 100%)`,
-            }}
-          >
-            {/* Cybernetic Circular Ring Accent */}
-            <div
-              className="absolute inset-1 rounded-full pointer-events-none"
+          {/* Chameleon Mascot Image */}
+          <div className="w-full h-full rounded-full overflow-hidden relative shadow-inner">
+            <img
+              src={activeSkin.avatarImg || mascotImg}
+              alt={activeSkin.skinName}
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover rounded-full pointer-events-none transition-all duration-300"
               style={{
-                border: `1.5px ${activeSkin.ringStyle.borderDashed ? 'dashed' : 'solid'} ${activeSkin.themeColor}80`,
-                animation: `spin ${activeSkin.ringStyle.spinDuration} linear infinite`,
+                filter: activeSkin.characterVisuals.auraFilter,
               }}
             />
 
-            {/* Chameleon Mascot Image */}
-            <div className="w-full h-full rounded-full overflow-hidden relative shadow-inner">
-              <img
-                src={activeSkin.avatarImg || mascotImg}
-                alt={activeSkin.skinName}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover rounded-full pointer-events-none transition-all duration-300"
-                style={{
-                  filter: activeSkin.characterVisuals.auraFilter,
-                }}
-              />
+            {/* Seasonal Character Costume / Accessory (Cyber Monocle, Gold Collar, Diamond Visor, etc.) */}
+            <SeasonalCharacterAccessory skin={activeSkin} />
 
-              {/* Seasonal Character Costume / Accessory (Cyber Monocle, Gold Collar, Diamond Visor, etc.) */}
-              <SeasonalCharacterAccessory skin={activeSkin} />
-
-              {/* Glossy lighting highlight */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/15 rounded-full pointer-events-none" />
-            </div>
+            {/* Glossy lighting highlight */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/15 rounded-full pointer-events-none" />
           </div>
-
-          {/* Low energy overlay indicator */}
-          {energy <= 0 && (
-            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/65 backdrop-blur-xs pointer-events-none z-30">
-              <div className="bg-[#151a24] border border-amber-400/40 px-3.5 py-1.5 rounded-full flex items-center gap-1.5 text-amber-300 text-xs font-bold shadow-lg">
-                <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
-                <span>Energy Refilling...</span>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Attached Energy Indicator & Boost Function Section (Balanced 50/50 Under the Tap) */}
-        <div
-          id="tap-attached-energy-boost"
-          className="w-full mt-2 px-1 shrink-0 select-none"
-        >
-          <div className="flex items-center justify-between text-xs font-bold mb-1.5 px-0.5">
-            {/* Left 50%: Energy Indicator */}
-            <div className="flex items-center gap-1.5 text-amber-400 whitespace-nowrap">
-              <div className="w-6 h-6 rounded-lg bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">
-                <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-xs sm:text-sm font-black text-white font-mono tracking-tight">
-                  {energy.toLocaleString()}
-                </span>
-                <span className="text-slate-400 font-semibold font-mono text-xs">
-                  /{formatTapCap(maxEnergy)}
-                </span>
-              </div>
+        {/* Low energy overlay indicator */}
+        {energy <= 0 && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/65 backdrop-blur-xs pointer-events-none z-30">
+            <div className="bg-[#151a24] border border-amber-400/40 px-3.5 py-1.5 rounded-full flex items-center gap-1.5 text-amber-300 text-xs font-bold shadow-lg">
+              <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span>Energy Refilling...</span>
             </div>
+          </div>
+        )}
+      </div>
 
-            {/* Right 50%: Boost Function */}
-            <button
-              id="btn-boost"
-              onClick={() => {
-                soundFx.playClick();
-                onOpenBoost();
-              }}
-              className="flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-3 py-1 rounded-xl border border-amber-400/30 transition group shrink-0 active:scale-95 shadow-xs"
-            >
-              <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 group-hover:scale-110 transition" />
-              <span>Boost</span>
-            </button>
+      {/* Energy Indicator & Boost Bar - Lowered far down at the footer level */}
+      <div
+        id="tap-attached-energy-boost"
+        className="w-full max-w-sm shrink-0 px-1 pb-1 mb-0.5 z-10 select-none"
+      >
+        <div className="flex items-center justify-between text-xs font-bold mb-1.5 px-0.5">
+          {/* Left: Energy Indicator */}
+          <div className="flex items-center gap-1.5 text-amber-400 whitespace-nowrap">
+            <div className="w-6 h-6 rounded-lg bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">
+              <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs sm:text-sm font-black text-white font-mono tracking-tight">
+                {energy.toLocaleString()}
+              </span>
+              <span className="text-slate-400 font-semibold font-mono text-xs">
+                /{formatTapCap(maxEnergy)}
+              </span>
+            </div>
           </div>
 
-          {/* Energy stamina progress bar - fast duration-75 response to rapid tapping */}
-          <div className="w-full h-2 sm:h-2.5 bg-slate-800/80 rounded-full overflow-hidden border border-white/10 p-0.5">
-            <div
-              className="h-full rounded-full transition-[width] duration-75 ease-out bg-gradient-to-r from-amber-500 to-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.6)]"
-              style={{ width: `${energyPercentage}%` }}
-            />
-          </div>
+          {/* Right: Boost Button */}
+          <button
+            id="btn-boost"
+            onClick={() => {
+              soundFx.playClick();
+              onOpenBoost();
+            }}
+            className="flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-3 py-1 rounded-xl border border-amber-400/30 transition group shrink-0 active:scale-95 shadow-xs cursor-pointer"
+          >
+            <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 group-hover:scale-110 transition" />
+            <span>Boost</span>
+          </button>
+        </div>
+
+        {/* Energy stamina progress bar - fast duration-75 response to rapid tapping */}
+        <div className="w-full h-2 sm:h-2.5 bg-slate-800/80 rounded-full overflow-hidden border border-white/10 p-0.5">
+          <div
+            className="h-full rounded-full transition-[width] duration-75 ease-out bg-gradient-to-r from-amber-500 to-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.6)]"
+            style={{ width: `${energyPercentage}%` }}
+          />
         </div>
       </div>
 
