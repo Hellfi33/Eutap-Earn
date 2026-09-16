@@ -98,9 +98,10 @@ export interface GameState {
   equippedSkinLevel?: number | null;
   
   // Reserves and Special Currency
-  reserveBalance: number; // $80.00 base reserve balance for every player
+  reserveBalance: number; // Reserve balance in USD (starts at 0, earned via lucky spin or booster)
   diamonds: number; // Diamonds currency earned by player
   keys: number; // Keys collected by player (mini-games, cipher, daily events)
+  legacyBonus80Removed?: boolean;
 
   // Daily Streak
   streakDay: number;

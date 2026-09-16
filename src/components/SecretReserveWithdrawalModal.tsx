@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { DollarSign, ArrowUpRight, CheckCircle2, ShieldCheck, Wallet, X, Copy, Check } from 'lucide-react';
+import { DollarSign, ArrowUpRight, CheckCircle2, ShieldCheck, Wallet, X, Copy, Check, Key, AlertTriangle } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
 interface SecretReserveWithdrawalModalProps {
   isOpen: boolean;
   onClose: () => void;
   reserveBalance: number;
-  onWithdraw: (amount: number) => void;
+  playerKeys: number;
+  onWithdraw: (amount: number, keyFee: number, address: string, network: string) => void;
 }
 
 const NETWORKS = [
@@ -18,24 +19,47 @@ const NETWORKS = [
   { id: 'btc', name: 'BTC (Bitcoin)', badge: 'Bitcoin Core', min: 25 },
 ];
 
+/**
+ * Calculates the required key charge for a withdrawal:
+ * - Rate: $5 withdrawal costs 30 keys (ratio: 6 keys per $1.00)
+ * - Minimum: 30 keys
+ * - Maximum: 10,000 keys
+ */
+export const calculateWithdrawalKeyFee = (amount: number): number => {
+  if (amount <= 0) return 30;
+  const rawKeys = Math.ceil(amount * 6);
+  return Math.min(10000, Math.max(30, rawKeys));
+};
+
 export const SecretReserveWithdrawalModal: React.FC<SecretReserveWithdrawalModalProps> = ({
   isOpen,
   onClose,
   reserveBalance,
+  playerKeys = 0,
   onWithdraw,
 }) => {
   const [selectedNet, setSelectedNet] = useState(NETWORKS[0]);
   const [walletAddress, setWalletAddress] = useState('');
-  const [amountStr, setAmountStr] = useState(reserveBalance > 0 ? reserveBalance.toString() : '50');
+  const [amountStr, setAmountStr] = useState(reserveBalance > 0 ? Math.min(reserveBalance, 50).toString() : '0');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [receipt, setReceipt] = useState<{ txHash: string; amount: number; net: string; address: string } | null>(null);
+  const [receipt, setReceipt] = useState<{
+    txHash: string;
+    amount: number;
+    keyFee: number;
+    remainingKeys: number;
+    net: string;
+    address: string;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
   const withdrawAmount = parseFloat(amountStr) || 0;
+  const keyFee = calculateWithdrawalKeyFee(withdrawAmount);
+  const hasEnoughKeys = playerKeys >= keyFee;
   const isValidAmount = withdrawAmount > 0 && withdrawAmount <= reserveBalance;
   const isValidAddress = walletAddress.trim().length >= 10;
+  const canSubmit = isValidAmount && isValidAddress && hasEnoughKeys && !isProcessing;
 
   const handleMax = () => {
     soundFx.playClick();
@@ -53,7 +77,7 @@ export const SecretReserveWithdrawalModal: React.FC<SecretReserveWithdrawalModal
   };
 
   const handleSubmitWithdraw = () => {
-    if (!isValidAmount || !isValidAddress || isProcessing) return;
+    if (!canSubmit) return;
 
     soundFx.playClick();
     setIsProcessing(true);
@@ -61,10 +85,12 @@ export const SecretReserveWithdrawalModal: React.FC<SecretReserveWithdrawalModal
     setTimeout(() => {
       soundFx.playReward();
       const mockTx = '0x' + Array.from({ length: 48 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      onWithdraw(withdrawAmount);
+      onWithdraw(withdrawAmount, keyFee, walletAddress.trim(), selectedNet.name);
       setReceipt({
         txHash: mockTx,
         amount: withdrawAmount,
+        keyFee,
+        remainingKeys: Math.max(0, playerKeys - keyFee),
         net: selectedNet.name,
         address: walletAddress.trim(),
       });
@@ -136,12 +162,24 @@ export const SecretReserveWithdrawalModal: React.FC<SecretReserveWithdrawalModal
                 <p className="text-xs text-slate-400 mt-1">Sent to {receipt.net}</p>
               </div>
 
-              {/* Transaction Hash Card */}
-              <div className="p-3 rounded-xl bg-black/60 border border-white/10 text-left space-y-2 text-xs">
+              {/* Transaction Hash & Fee Card */}
+              <div className="p-3.5 rounded-xl bg-black/60 border border-white/10 text-left space-y-2 text-xs">
                 <div className="flex items-center justify-between text-slate-400">
                   <span>Destination Address:</span>
                   <span className="font-mono text-slate-200 truncate max-w-[180px]">
                     {receipt.address}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Withdrawal Key Fee:</span>
+                  <span className="font-bold text-amber-400 flex items-center gap-1 font-['Rajdhani',sans-serif]">
+                    <span>🔑 -{receipt.keyFee.toLocaleString()} Keys</span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-slate-400">
+                  <span>Remaining Keys:</span>
+                  <span className="font-bold text-slate-200 font-['Rajdhani',sans-serif]">
+                    {receipt.remainingKeys.toLocaleString()} Keys
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-slate-400">
@@ -154,7 +192,7 @@ export const SecretReserveWithdrawalModal: React.FC<SecretReserveWithdrawalModal
                     {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   </button>
                 </div>
-                <div className="flex items-center justify-between text-slate-400">
+                <div className="flex items-center justify-between text-slate-400 pt-1 border-t border-white/5">
                   <span>Status:</span>
                   <span className="text-emerald-400 font-bold flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -172,21 +210,27 @@ export const SecretReserveWithdrawalModal: React.FC<SecretReserveWithdrawalModal
             </div>
           ) : (
             <>
-              {/* Reserve Balance Display Card */}
-              <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-black border border-emerald-500/40 flex items-center justify-between shadow-[inset_0_0_20px_rgba(16,185,129,0.1)]">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                    Available Reserve Vault
+              {/* Dual Reserve & Keys Balance Display Card */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-950/40 via-slate-900 to-black border border-emerald-500/40 shadow-[inset_0_0_20px_rgba(16,185,129,0.1)]">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Reserve Vault
                   </span>
-                  <div className="text-2xl font-black text-white font-['Rajdhani',sans-serif] flex items-center gap-1">
+                  <div className="text-xl font-black text-white font-['Rajdhani',sans-serif] flex items-center gap-0.5 mt-0.5">
                     <span className="text-emerald-400">$</span>
                     <span>{reserveBalance.toFixed(2)}</span>
-                    <span className="text-xs text-slate-400 font-normal ml-1">USD</span>
+                    <span className="text-[10px] text-slate-400 font-normal ml-1">USD</span>
                   </div>
                 </div>
-                <div className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-bold flex items-center gap-1">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Verified 100%</span>
+
+                <div className="p-3 rounded-xl bg-gradient-to-r from-amber-950/30 via-slate-900 to-black border border-amber-500/30 shadow-[inset_0_0_20px_rgba(245,158,11,0.08)]">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Your Keys
+                  </span>
+                  <div className="text-xl font-black text-amber-300 font-['Rajdhani',sans-serif] flex items-center gap-1 mt-0.5">
+                    <span className="text-base">🔑</span>
+                    <span>{playerKeys.toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
 
@@ -267,20 +311,68 @@ export const SecretReserveWithdrawalModal: React.FC<SecretReserveWithdrawalModal
                 </div>
               </div>
 
+              {/* Key Charge Breakdown Card */}
+              <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Key className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-bold text-amber-300 tracking-wide uppercase font-['Rajdhani',sans-serif]">
+                      Withdrawal Key Fee
+                    </span>
+                  </div>
+                  <span className="font-['Rajdhani',sans-serif] font-extrabold text-amber-300 text-sm">
+                    {keyFee.toLocaleString()} Keys
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">
+                    Rate: $5.00 = 30 Keys (6 Keys / $1)
+                  </span>
+                  <span className="text-[10px] text-amber-400/80 font-mono">
+                    Min 30 • Max 10,000
+                  </span>
+                </div>
+
+                <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Your Key Balance:</span>
+                  <span className={`font-bold font-['Rajdhani',sans-serif] ${hasEnoughKeys ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {playerKeys.toLocaleString()} Keys {hasEnoughKeys ? '✓' : `(Need ${(keyFee - playerKeys).toLocaleString()} more)`}
+                  </span>
+                </div>
+
+                {!hasEnoughKeys && (
+                  <div className="p-2 rounded-lg bg-rose-950/40 border border-rose-500/40 flex items-start gap-2 text-[11px] text-rose-300 leading-tight">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <span>
+                      Insufficient keys. This ${withdrawAmount.toFixed(2)} withdrawal requires {keyFee.toLocaleString()} Keys. You have {playerKeys.toLocaleString()} Keys.
+                    </span>
+                  </div>
+                )}
+              </div>
+
               {/* Submit Action */}
               <button
                 onClick={handleSubmitWithdraw}
-                disabled={!isValidAmount || !isValidAddress || isProcessing}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition disabled:opacity-40 shadow-[0_0_25px_rgba(16,185,129,0.35)]"
+                disabled={!canSubmit}
+                className={`w-full py-3 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-[0_0_25px_rgba(16,185,129,0.35)] ${
+                  !hasEnoughKeys && isValidAmount && isValidAddress
+                    ? 'bg-rose-900/60 border border-rose-500/40 text-rose-300 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-black disabled:opacity-40'
+                }`}
               >
                 {isProcessing ? (
                   <>
                     <span className="w-4 h-4 rounded-full border-2 border-black border-t-transparent animate-spin" />
                     <span>Processing Blockchain Dispatch...</span>
                   </>
+                ) : !hasEnoughKeys && isValidAmount && isValidAddress ? (
+                  <>
+                    <span>Insufficient Keys ({playerKeys}/{keyFee} 🗝️)</span>
+                  </>
                 ) : (
                   <>
-                    <span>Confirm & Withdraw</span>
+                    <span>Confirm & Withdraw (-{keyFee.toLocaleString()} Keys)</span>
                     <ArrowUpRight className="w-4 h-4" />
                   </>
                 )}

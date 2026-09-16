@@ -16,7 +16,7 @@ export const INITIAL_STATE: GameState = {
   lastEnergyTimestamp: Date.now(),
   critChance: 0.02,
   stage: 1,
-  reserveBalance: 80.00,
+  reserveBalance: 0,
   diamonds: 0,
   keys: 0,
 
@@ -108,13 +108,22 @@ export function loadGameState(): GameState {
     const rawTimestamps = Array.isArray(parsed.abcdRewardTimestamps) ? parsed.abcdRewardTimestamps : [];
     const validAbcdTimestamps = rawTimestamps.filter((t: any) => typeof t === 'number' && now - t < TWENTY_FOUR_HOURS);
 
+    // $80 joining bonus is permanently removed: joining/reset starts at 0
+    let reserveBalance = typeof parsed.reserveBalance === 'number' ? parsed.reserveBalance : 0;
+    if (parsed.legacyBonus80Removed !== true) {
+      if (reserveBalance === 80) {
+        reserveBalance = 0;
+      }
+    }
+
     return {
       ...INITIAL_STATE,
       ...parsed,
       tapLevel: currentTier.level,
       maxEnergy: targetMaxEnergy,
       stage: typeof parsed.stage === 'number' ? parsed.stage : 1,
-      reserveBalance: typeof parsed.reserveBalance === 'number' ? parsed.reserveBalance : 80.00,
+      reserveBalance,
+      legacyBonus80Removed: true,
       diamonds: typeof parsed.diamonds === 'number' ? parsed.diamonds : 0,
       keys: typeof parsed.keys === 'number' ? parsed.keys : 0,
       luckyChanceSpins,

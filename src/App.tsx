@@ -673,12 +673,13 @@ export default function App() {
   };
 
   // Secret Modal Handlers
-  const handleWithdrawReserve = (amount: number, address: string, network: string) => {
+  const handleWithdrawReserve = (amount: number, keyFee: number, address: string, network: string) => {
     setState((prev) => ({
       ...prev,
       reserveBalance: Math.max(0, prev.reserveBalance - amount),
+      keys: Math.max(0, (prev.keys || 0) - keyFee),
     }));
-    setMorseToastMessage(`WITHDRAWAL PROCESSED: $${amount.toFixed(2)} sent to ${network} wallet`);
+    setMorseToastMessage(`WITHDRAWAL PROCESSED: $${amount.toFixed(2)} sent to ${network} (-${keyFee.toLocaleString()} Keys fee)`);
   };
 
   const handleWinDiamonds = (amount: number) => {
@@ -1069,6 +1070,7 @@ export default function App() {
           isOpen={showWithdrawModal}
           onClose={() => setShowWithdrawModal(false)}
           reserveBalance={state.reserveBalance}
+          playerKeys={state.keys || 0}
           onWithdraw={handleWithdrawReserve}
         />
       )}
