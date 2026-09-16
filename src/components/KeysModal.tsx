@@ -74,54 +74,64 @@ export const KeysModal: React.FC<KeysModalProps> = ({
         {/* How to Collect Keys List */}
         <div className="w-full flex flex-col gap-2 mb-4">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">
-            How to Earn More Keys
+            Exclusive Ways to Earn Keys & Diamonds
           </span>
 
-          {/* Daily Cipher */}
-          <div className="bg-[#141824] border border-white/5 rounded-xl p-2.5 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 text-xs font-bold">
-                C
-              </div>
-              <div className="text-left">
-                <span className="text-xs font-bold text-white block leading-tight">Daily Morse Cipher</span>
-                <span className="text-[10px] text-slate-400">Decode today's word (+1 Key)</span>
-              </div>
-            </div>
-            <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-              +1 KEY
-            </span>
-          </div>
-
-          {/* Daily Combo */}
-          <div className="bg-[#141824] border border-white/5 rounded-xl p-2.5 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 text-xs font-bold">
-                K
-              </div>
-              <div className="text-left">
-                <span className="text-xs font-bold text-white block leading-tight">Daily 3-Card Combo</span>
-                <span className="text-[10px] text-slate-400">Unlock daily combo cards (+1 Key)</span>
-              </div>
-            </div>
-            <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-              +1 KEY
-            </span>
-          </div>
-
-          {/* Lucky Wheel */}
+          {/* 1. Every 5,000 Taps */}
           <div className="bg-[#141824] border border-white/5 rounded-xl p-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 text-xs font-bold">
-                W
+                5K
               </div>
               <div className="text-left">
-                <span className="text-xs font-bold text-white block leading-tight">Lucky Spin Wheel</span>
-                <span className="text-[10px] text-slate-400">Land on special Golden Key wedges</span>
+                <span className="text-xs font-bold text-white block leading-tight">Every 5,000 Taps</span>
+                <span className="text-[10px] text-slate-400">Milestone: +1 Key & +2 Diamonds</span>
               </div>
             </div>
-            <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded">
-              +1~3 KEYS
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
+                +1 KEY
+              </span>
+              <span className="text-[9px] font-mono font-bold text-cyan-400 bg-cyan-500/10 px-1.5 py-0.2 rounded">
+                +2 💎
+              </span>
+            </div>
+          </div>
+
+          {/* 2. Every 10 Million Points */}
+          <div className="bg-[#141824] border border-white/5 rounded-xl p-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 text-xs font-bold">
+                10M
+              </div>
+              <div className="text-left">
+                <span className="text-xs font-bold text-white block leading-tight">Every 10 Million Points</span>
+                <span className="text-[10px] text-slate-400">Milestone: +3 Keys & +3 Diamonds</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
+                +3 KEYS
+              </span>
+              <span className="text-[9px] font-mono font-bold text-cyan-400 bg-cyan-500/10 px-1.5 py-0.2 rounded">
+                +3 💎
+              </span>
+            </div>
+          </div>
+
+          {/* 3. S*** Morse Lucky Wheel */}
+          <div className="bg-[#141824] border border-white/5 rounded-xl p-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 text-xs font-bold">
+                S***
+              </div>
+              <div className="text-left">
+                <span className="text-xs font-bold text-white block leading-tight">S*** Morse Lucky Wheel</span>
+                <span className="text-[10px] text-slate-400">15-Chart spin (1 & 7 Keys, 2 & 5 💎)</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono font-bold text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded">
+              LUCKY SPIN
             </span>
           </div>
         </div>

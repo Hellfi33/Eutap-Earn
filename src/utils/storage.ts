@@ -30,6 +30,12 @@ export const INITIAL_STATE: GameState = {
   comboSolvedToday: false,
   lastComboDate: null,
 
+  luckyChanceSpins: 6,
+  luckyChanceNextRefillTime: 0,
+
+  tapMilestonesRewarded: 0,
+  pointMilestonesRewarded: 0,
+
   spinCount: 5,
   nextSpinRefillTime: 0,
 
@@ -89,6 +95,14 @@ export function loadGameState(): GameState {
       nextSpinRefillTime = 0;
     }
 
+    // Check S*** Morse Lucky Chance Wheel 24-hour cycle (6 spins every 24h)
+    let luckyChanceSpins = typeof parsed.luckyChanceSpins === 'number' ? parsed.luckyChanceSpins : 6;
+    let luckyChanceNextRefillTime = typeof parsed.luckyChanceNextRefillTime === 'number' ? parsed.luckyChanceNextRefillTime : 0;
+    if (luckyChanceNextRefillTime > 0 && now >= luckyChanceNextRefillTime) {
+      luckyChanceSpins = 6;
+      luckyChanceNextRefillTime = 0;
+    }
+
     // Clean up expired ABCD reward timestamps older than 24 hours (86,400,000 ms)
     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
     const rawTimestamps = Array.isArray(parsed.abcdRewardTimestamps) ? parsed.abcdRewardTimestamps : [];
@@ -103,6 +117,10 @@ export function loadGameState(): GameState {
       reserveBalance: typeof parsed.reserveBalance === 'number' ? parsed.reserveBalance : 80.00,
       diamonds: typeof parsed.diamonds === 'number' ? parsed.diamonds : 0,
       keys: typeof parsed.keys === 'number' ? parsed.keys : 0,
+      luckyChanceSpins,
+      luckyChanceNextRefillTime,
+      tapMilestonesRewarded: typeof parsed.tapMilestonesRewarded === 'number' ? parsed.tapMilestonesRewarded : Math.floor((parsed.totalTaps || 0) / 5000),
+      pointMilestonesRewarded: typeof parsed.pointMilestonesRewarded === 'number' ? parsed.pointMilestonesRewarded : Math.floor((parsed.totalEarned || 0) / 10000000),
       energy: restoredEnergy,
       lastEnergyTimestamp: now,
       cipherWord: todayCipherWord,

@@ -115,6 +115,14 @@ export interface GameState {
   comboSolvedToday: boolean;
   lastComboDate: string | null;
 
+  // S*** Morse Lucky Chance Wheel (6 spins per 24 hours + extra spins)
+  luckyChanceSpins: number;
+  luckyChanceNextRefillTime: number;
+
+  // Milestone Benefits tracking (5,000 taps & 10M points)
+  tapMilestonesRewarded: number;
+  pointMilestonesRewarded: number;
+
   // Lucky Wheel (5 free spins every 3 hours)
   spinCount: number;
   nextSpinRefillTime: number; // timestamp in ms when spins refill

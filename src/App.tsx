@@ -192,6 +192,15 @@ export default function App() {
           changed = true;
         }
 
+        // S*** Morse Lucky Chance Wheel 24-hour cycle (6 spins every 24h)
+        let nextLuckyChanceSpins = prev.luckyChanceSpins ?? 6;
+        let nextLuckyChanceRefill = prev.luckyChanceNextRefillTime ?? 0;
+        if (nextLuckyChanceRefill > 0 && now >= nextLuckyChanceRefill) {
+          nextLuckyChanceSpins = 6;
+          nextLuckyChanceRefill = 0;
+          changed = true;
+        }
+
         // Clean up ABCD reward timestamps older than 24 hours
         const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
         const currentAbcd = prev.abcdRewardTimestamps || [];
@@ -209,6 +218,8 @@ export default function App() {
           comboSolvedToday: nextComboSolved,
           spinCount: nextSpinCount,
           nextSpinRefillTime: nextSpinRefill,
+          luckyChanceSpins: nextLuckyChanceSpins,
+          luckyChanceNextRefillTime: nextLuckyChanceRefill,
           abcdRewardTimestamps: cleanedAbcd,
         };
       });
@@ -378,12 +389,10 @@ export default function App() {
   // Daily Streak Claim
   const handleClaimDailyStreak = (day: number, reward: number) => {
     const todayStr = new Date().toISOString().split('T')[0];
-    const diamondGain = day >= 10 ? 25 : day >= 5 ? 5 : 0;
     setState((prev) => ({
       ...prev,
       coins: prev.coins + reward,
       totalEarned: prev.totalEarned + reward,
-      diamonds: prev.diamonds + diamondGain,
       streakDay: day,
       lastClaimDate: todayStr,
     }));
@@ -397,8 +406,6 @@ export default function App() {
       ...prev,
       coins: prev.coins + reward,
       totalEarned: prev.totalEarned + reward,
-      diamonds: prev.diamonds + 5,
-      keys: (prev.keys || 0) + 1,
       cipherSolvedToday: true,
       lastCipherDate: todayStr,
     }));
@@ -411,8 +418,6 @@ export default function App() {
       ...prev,
       coins: prev.coins + reward,
       totalEarned: prev.totalEarned + reward,
-      diamonds: prev.diamonds + 10,
-      keys: (prev.keys || 0) + 1,
       comboSolvedToday: true,
       lastComboDate: todayStr,
     }));
@@ -577,7 +582,7 @@ export default function App() {
 
       case 'diamond':
         soundFx.playReward();
-        setShowDiamondWheelModal(true);
+        setShowLuckyChanceModal(true);
         break;
 
       case 'debit':
@@ -656,19 +661,115 @@ export default function App() {
     setMorseToastMessage(`DEBIT APPLIED: -${amount.toLocaleString()} points deducted from balance`);
   };
 
-  const handleLuckyChanceReward = (reward: { type: 'points' | 'diamonds'; amount: number }) => {
-    setState((prev) => ({
-      ...prev,
-      coins: reward.type === 'points' ? prev.coins + reward.amount : prev.coins,
-      totalEarned: reward.type === 'points' ? prev.totalEarned + reward.amount : prev.totalEarned,
-      diamonds: reward.type === 'diamonds' ? prev.diamonds + reward.amount : prev.diamonds,
-    }));
+  const handleLuckyChanceSpinStart = () => {
+    setState((prev) => {
+      const currentSpins = prev.luckyChanceSpins ?? 6;
+      if (currentSpins <= 0) return prev;
+
+      const now = Date.now();
+      let nextRefill = prev.luckyChanceNextRefillTime ?? 0;
+      if (nextRefill <= 0 || nextRefill < now) {
+        nextRefill = now + 24 * 60 * 60 * 1000;
+      }
+
+      return {
+        ...prev,
+        luckyChanceSpins: Math.max(0, currentSpins - 1),
+        luckyChanceNextRefillTime: nextRefill,
+      };
+    });
+  };
+
+  const handleLuckyChanceReward = (reward: {
+    type: 'diamond' | 'key' | 'points' | 'reserve' | 'extra_spin' | 'empty';
+    amount: number;
+    label: string;
+  }) => {
+    setState((prev) => {
+      let newCoins = prev.coins;
+      let newTotalEarned = prev.totalEarned;
+      let newDiamonds = prev.diamonds;
+      let newKeys = prev.keys || 0;
+      let newReserve = prev.reserveBalance;
+      let newLuckySpins = prev.luckyChanceSpins ?? 6;
+
+      if (reward.type === 'points') {
+        newCoins += reward.amount;
+        newTotalEarned += reward.amount;
+      } else if (reward.type === 'diamond') {
+        newDiamonds += reward.amount;
+      } else if (reward.type === 'key') {
+        newKeys += reward.amount;
+      } else if (reward.type === 'reserve') {
+        newReserve += reward.amount;
+      } else if (reward.type === 'extra_spin') {
+        newLuckySpins += reward.amount;
+      }
+
+      return {
+        ...prev,
+        coins: newCoins,
+        totalEarned: newTotalEarned,
+        diamonds: newDiamonds,
+        keys: newKeys,
+        reserveBalance: newReserve,
+        luckyChanceSpins: newLuckySpins,
+      };
+    });
+
     if (reward.type === 'points') {
-      setMorseToastMessage(`LUCKY SPIN REWARD: +${(reward.amount / 1000000).toLocaleString()}M Points!`);
+      setMorseToastMessage(`LUCKY SPIN REWARD: +${(reward.amount / 1000000).toLocaleString()}M Points credited to Point Balance!`);
+    } else if (reward.type === 'diamond') {
+      setMorseToastMessage(`LUCKY SPIN REWARD: +${reward.amount} Diamonds credited to Diamond Reserve!`);
+    } else if (reward.type === 'key') {
+      setMorseToastMessage(`LUCKY SPIN REWARD: +${reward.amount} ${reward.amount === 1 ? 'Key' : 'Keys'} credited to Master Keys Vault!`);
+    } else if (reward.type === 'reserve') {
+      setMorseToastMessage(`LUCKY SPIN REWARD: +$${reward.amount.toFixed(2)} credited to $ Reserve Balance!`);
+    } else if (reward.type === 'extra_spin') {
+      setMorseToastMessage(`LUCKY SPIN REWARD: +1 EXTRA SPIN! Spin again now!`);
     } else {
-      setMorseToastMessage(`LUCKY SPIN REWARD: +${reward.amount} Diamonds!`);
+      setMorseToastMessage(`LUCKY SPIN: 0 won. Spin again!`);
     }
   };
+
+  // Milestone Benefits:
+  // 1. Every 5,000 taps earn 1 key and 2 diamonds
+  useEffect(() => {
+    const currentTapMilestones = Math.floor(state.totalTaps / 5000);
+    const rewardedMilestones = state.tapMilestonesRewarded || 0;
+    if (currentTapMilestones > rewardedMilestones) {
+      const diff = currentTapMilestones - rewardedMilestones;
+      setState((prev) => ({
+        ...prev,
+        keys: (prev.keys || 0) + 1 * diff,
+        diamonds: prev.diamonds + 2 * diff,
+        tapMilestonesRewarded: currentTapMilestones,
+      }));
+      soundFx.playReward();
+      setMorseToastMessage(
+        `🗝️ TAP MILESTONE: ${(currentTapMilestones * 5000).toLocaleString()} Taps! +${diff} Key & +${diff * 2} Diamonds earned!`
+      );
+    }
+  }, [state.totalTaps, state.tapMilestonesRewarded]);
+
+  // 2. Every 10,000,000 points earn 3 keys and 3 diamonds
+  useEffect(() => {
+    const currentPointMilestones = Math.floor(state.totalEarned / 10000000);
+    const rewardedMilestones = state.pointMilestonesRewarded || 0;
+    if (currentPointMilestones > rewardedMilestones) {
+      const diff = currentPointMilestones - rewardedMilestones;
+      setState((prev) => ({
+        ...prev,
+        keys: (prev.keys || 0) + 3 * diff,
+        diamonds: prev.diamonds + 3 * diff,
+        pointMilestonesRewarded: currentPointMilestones,
+      }));
+      soundFx.playReward();
+      setMorseToastMessage(
+        `💎 POINT MILESTONE: ${(currentPointMilestones * 10).toLocaleString()}M Points! +${diff * 3} Keys & +${diff * 3} Diamonds earned!`
+      );
+    }
+  }, [state.totalEarned, state.pointMilestonesRewarded]);
 
   const isStage2 = state.stage === 2;
   const currentTier = getTierByCoins(state.coins, state.stage);
@@ -956,11 +1057,14 @@ export default function App() {
         />
       )}
 
-      {/* 9-Chart Lucky Chance Wheel Modal (Points in Millions & Diamonds in Units/Tens) */}
+      {/* 15-Chart S*** Morse Lucky Chance Wheel Modal */}
       {showLuckyChanceModal && (
         <LuckyChanceWheelModal
           isOpen={showLuckyChanceModal}
           onClose={() => setShowLuckyChanceModal(false)}
+          spinsRemaining={state.luckyChanceSpins ?? 6}
+          nextRefillTime={state.luckyChanceNextRefillTime ?? 0}
+          onSpinStart={handleLuckyChanceSpinStart}
           onWinReward={handleLuckyChanceReward}
         />
       )}

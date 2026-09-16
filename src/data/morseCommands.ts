@@ -48,7 +48,7 @@ export const MORSE_COMMANDS: MorseCommand[] = [
     code: 'DMD**',
     compactCode: 'DMD**',
     aliases: ['DMD**', 'DMD--', 'DMD++', 'DIAMOND'],
-    description: 'Opens secret diamond spin wheel with 10 slices (1 to 7 diamonds winnable).',
+    description: 'Opens upgraded 15-chart Morse lucky chance wheel for diamonds, keys, cash & points.',
   },
   {
     id: 'debit',
@@ -64,7 +64,7 @@ export const MORSE_COMMANDS: MorseCommand[] = [
     code: 'S***',
     compactCode: 'S***',
     aliases: ['S***', 'S---', 'S+++', 'SPIN'],
-    description: 'Lucky chance spin for diamonds (units & tens) and points (in millions).',
+    description: '15-chart Morse lucky chance wheel: keys, diamonds, $ reserves, extra spins, points (6 spins / 24h).',
   },
   {
     id: 'level_up',
