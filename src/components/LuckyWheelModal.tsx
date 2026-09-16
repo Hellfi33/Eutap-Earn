@@ -83,26 +83,26 @@ export const LuckyWheelModal: React.FC<LuckyWheelModalProps> = ({
     let targetOffset = (270 - segCenterAngle) % 360;
     if (targetOffset < 0) targetOffset += 360;
 
-    // Add 6 to 8 full rotations (360 * 6 = 2160) for suspenseful spinning
+    // Add 12 full rotations for an 8-second suspenseful spin
     const currentBase = Math.floor(rotation / 360) * 360;
     // Add small randomized jitter between -12 and +12 degrees to keep it natural
     const jitter = (Math.random() - 0.5) * 16;
-    const finalRotation = currentBase + 360 * 6 + targetOffset + jitter;
+    const finalRotation = currentBase + 360 * 12 + targetOffset + jitter;
 
     setRotation(finalRotation);
 
-    // Play ticking audio sound effects while wheel spins
+    // Play ticking audio sound effects while wheel spins over 8 seconds
     let tickCount = 0;
-    const maxTicks = 24;
+    const maxTicks = 45;
     tickIntervalRef.current = window.setInterval(() => {
       soundFx.playWheelTick();
       tickCount++;
       if (tickCount >= maxTicks) {
         if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
       }
-    }, 160);
+    }, 175);
 
-    // Spin animation duration is 4.5s
+    // Spin animation duration is exactly 8 seconds
     setTimeout(() => {
       if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
       setIsSpinning(false);
@@ -123,7 +123,7 @@ export const LuckyWheelModal: React.FC<LuckyWheelModalProps> = ({
       }
 
       onSpinUsed(winningSeg.points, newSpinCount, newRefillTime);
-    }, 4500);
+    }, 8000);
   };
 
   const handleClaimWin = () => {
@@ -226,7 +226,7 @@ export const LuckyWheelModal: React.FC<LuckyWheelModalProps> = ({
             style={{
               transform: `rotate(${rotation}deg)`,
               transition: isSpinning
-                ? 'transform 4.5s cubic-bezier(0.15, 0.9, 0.2, 1)'
+                ? 'transform 8s cubic-bezier(0.12, 0.95, 0.2, 1)'
                 : 'none',
             }}
             className="rounded-full shadow-[0_0_24px_rgba(0,0,0,0.8)] select-none"

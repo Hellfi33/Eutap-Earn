@@ -51,6 +51,34 @@ export interface FloatingTapNumber {
   isCrit?: boolean;
 }
 
+export interface SeasonalSkin {
+  level: number;
+  seasonNumber: number;
+  seasonTitle: string;
+  skinName: string;
+  characterTitle: string;
+  description: string;
+  avatarImg: string;
+  themeColor: string;
+  secondaryColor: string;
+  glowColor: string;
+  bgGradient: string;
+  bgPattern: 'copper_grid' | 'silver_beams' | 'gold_dust' | 'cyber_skyline' | 'ice_crystals' | 'purple_nebula' | 'synth_lines' | 'solar_embers' | 'crimson_matrix' | 'imperial_gold' | 'quantum_grid' | 'titan_lightning' | 'void_rift' | 'apex_flame' | 'solar_corona' | 'immortal_light' | 'emerald_matrix' | 'celestial_spiral' | 'transcendent_stars' | 'sovereign_omni';
+  ringStyle: {
+    borderColor: string;
+    borderDashed: boolean;
+    ringGlow: string;
+    outerAura: string;
+    spinDuration: string;
+  };
+  characterVisuals: {
+    accessory: 'bronze_shades' | 'silver_earpiece' | 'gold_collar_pin' | 'cyber_monocle' | 'diamond_visor' | 'plasma_crown' | 'matrix_hud' | 'amber_tracker' | 'ruby_targeter' | 'imperial_tiara' | 'quantum_halo' | 'titan_plates' | 'violet_void' | 'apex_optics' | 'solar_crest' | 'eternal_halo' | 'jade_horns' | 'celestial_eye' | 'cosmos_constellation' | 'sovereign_crown';
+    suitAccentColor: string;
+    auraFilter: string;
+    ambientParticles: string;
+  };
+}
+
 export interface GameState {
   coins: number;
   totalEarned: number;
@@ -65,10 +93,14 @@ export interface GameState {
   
   // Stage (1 = Standard 20 Levels, 2 = Quantum Upgraded 30 Levels)
   stage: number;
+
+  // Seasonal Skin (null = auto-evolve with player level)
+  equippedSkinLevel?: number | null;
   
   // Reserves and Special Currency
   reserveBalance: number; // $80.00 base reserve balance for every player
   diamonds: number; // Diamonds currency earned by player
+  keys: number; // Keys collected by player (mini-games, cipher, daily events)
 
   // Daily Streak
   streakDay: number;

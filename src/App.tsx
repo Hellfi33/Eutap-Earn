@@ -40,8 +40,10 @@ import { SecretDiamondWheelModal } from './components/SecretDiamondWheelModal';
 import { BalanceDebitModal } from './components/BalanceDebitModal';
 import { LuckyChanceWheelModal } from './components/LuckyChanceWheelModal';
 import { StageEvolutionModal } from './components/StageEvolutionModal';
+import { KeysModal } from './components/KeysModal';
 import { MorseCommandId } from './data/morseCommands';
 import { getTiersList, getLevelTapCap, STAGE_2_TIERS } from './data/tiers';
+import { getSeasonalSkinByLevel } from './data/seasonalSkins';
 
 export default function App() {
   const [state, setState] = useState<GameState>(() => loadGameState());
@@ -57,6 +59,7 @@ export default function App() {
   const [showWallet, setShowWallet] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showKeysModal, setShowKeysModal] = useState(false);
 
   // Secret Morse Modals & Execution States
   const [showMorseTerminal, setShowMorseTerminal] = useState(false);
@@ -395,6 +398,7 @@ export default function App() {
       coins: prev.coins + reward,
       totalEarned: prev.totalEarned + reward,
       diamonds: prev.diamonds + 5,
+      keys: (prev.keys || 0) + 1,
       cipherSolvedToday: true,
       lastCipherDate: todayStr,
     }));
@@ -408,6 +412,7 @@ export default function App() {
       coins: prev.coins + reward,
       totalEarned: prev.totalEarned + reward,
       diamonds: prev.diamonds + 10,
+      keys: (prev.keys || 0) + 1,
       comboSolvedToday: true,
       lastComboDate: todayStr,
     }));
@@ -534,32 +539,6 @@ export default function App() {
       walletConnected: false,
       walletProvider: null,
       walletAddress: null,
-    }));
-  };
-
-  // Friends Simulate
-  const handleSimulateInvite = (isPremium: boolean) => {
-    const bonus = isPremium ? 250000 : 50000;
-    const names = ['Alex_Crypto', 'Elena_Ton', 'Satoshi_Fan', 'Vicky_Tap', 'David_Sol', 'Dmitry_BKX'];
-    const randomName = names[Math.floor(Math.random() * names.length)] + '_' + Math.floor(Math.random() * 900 + 100);
-
-    const newMember = {
-      id: 'friend-' + Date.now(),
-      name: randomName,
-      avatar: '',
-      level: Math.floor(Math.random() * 5),
-      joinedAt: 'Just now',
-      earnedForYou: bonus,
-      isPremium,
-    };
-
-    setState((prev) => ({
-      ...prev,
-      coins: prev.coins + bonus,
-      totalEarned: prev.totalEarned + bonus,
-      diamonds: prev.diamonds + (isPremium ? 10 : 3),
-      squadEarnings: prev.squadEarnings + bonus,
-      squadMembers: [newMember, ...prev.squadMembers],
     }));
   };
 
@@ -692,14 +671,23 @@ export default function App() {
   };
 
   const isStage2 = state.stage === 2;
+  const currentTier = getTierByCoins(state.coins, state.stage);
+  const effectiveSkinLevel =
+    state.equippedSkinLevel !== null && state.equippedSkinLevel !== undefined
+      ? state.equippedSkinLevel
+      : currentTier.level;
+  const activeSeasonalSkin = getSeasonalSkinByLevel(effectiveSkinLevel, state.stage);
 
   return (
     <div
-      className={`h-[100dvh] max-h-[100dvh] w-full max-w-md mx-auto text-slate-100 flex flex-col justify-between relative overflow-hidden transition-colors duration-500 ${
+      className={`h-[100dvh] max-h-[100dvh] w-full max-w-md mx-auto text-slate-100 flex flex-col justify-between relative overflow-hidden transition-all duration-700 ${
         isStage2
           ? 'bg-[#070414] shadow-[0_0_80px_rgba(6,182,212,0.18)] border-x border-cyan-500/20'
-          : 'bg-[#0b0e14]'
+          : 'bg-[#0a0d14]'
       }`}
+      style={{
+        boxShadow: `0 0 60px ${activeSeasonalSkin.glowColor}`,
+      }}
     >
       {/* Toast Notification Banner */}
       {morseToastMessage && (
@@ -734,6 +722,7 @@ export default function App() {
             coins={state.coins}
             reserveBalance={state.reserveBalance}
             diamonds={state.diamonds}
+            keys={state.keys || 0}
             energy={state.energy}
             maxEnergy={state.maxEnergy}
             tapPower={state.tapPower}
@@ -759,11 +748,15 @@ export default function App() {
             onOpenLuckyWheel={() => setShowLuckyWheel(true)}
             onOpenBoost={() => setShowBoost(true)}
             onOpenMorseTerminal={() => setShowMorseTerminal(true)}
+            onOpenKeysModal={() => setShowKeysModal(true)}
+            onOpenTierModal={() => setShowTierModal(true)}
             isAutoTapping={isAutoTapping}
             onStopAutoTap={() => setIsAutoTapping(false)}
             stage={state.stage || 1}
-            mascotImg={mascotAvatar}
+            mascotImg={activeSeasonalSkin.avatarImg || mascotAvatar}
             goldCoinImg={goldCoin}
+            equippedSkinLevel={state.equippedSkinLevel ?? null}
+            onEquipSkin={(lvl) => setState((prev) => ({ ...prev, equippedSkinLevel: lvl }))}
           />
         )}
 
@@ -789,7 +782,6 @@ export default function App() {
               squadMembers={state.squadMembers}
               squadEarnings={state.squadEarnings}
               referralCode={state.referralCode}
-              onSimulateInvite={handleSimulateInvite}
               goldCoinImg={goldCoin}
             />
           </div>
@@ -979,6 +971,15 @@ export default function App() {
           isOpen={showStageEvolutionModal}
           onClose={() => setShowStageEvolutionModal(false)}
           stage={state.stage || 2}
+        />
+      )}
+
+      {/* Master Keys Vault Modal */}
+      {showKeysModal && (
+        <KeysModal
+          isOpen={showKeysModal}
+          onClose={() => setShowKeysModal(false)}
+          keysCount={state.keys || 0}
         />
       )}
     </div>

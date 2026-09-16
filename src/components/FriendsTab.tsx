@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Copy, Check, Share2, Sparkles, UserPlus } from 'lucide-react';
+import { Users, Copy, Check, Share2, Sparkles } from 'lucide-react';
 import { SquadMember } from '../types';
 import { soundFx } from '../utils/audio';
 
@@ -7,7 +7,6 @@ interface FriendsTabProps {
   squadMembers: SquadMember[];
   squadEarnings: number;
   referralCode: string;
-  onSimulateInvite: (isPremium: boolean) => void;
   goldCoinImg: string;
 }
 
@@ -15,7 +14,6 @@ export const FriendsTab: React.FC<FriendsTabProps> = ({
   squadMembers,
   squadEarnings,
   referralCode,
-  onSimulateInvite,
   goldCoinImg,
 }) => {
   const [copied, setCopied] = useState(false);
@@ -121,7 +119,7 @@ export const FriendsTab: React.FC<FriendsTabProps> = ({
           <div className="py-6 flex flex-col items-center justify-center text-center text-slate-500">
             <Users className="w-8 h-8 text-slate-600 mb-2" />
             <p className="text-xs text-slate-400 max-w-xs">
-              No squad members yet. Invite friends or test squad joins below to earn instant rewards!
+              No squad members yet. Share your invite link with friends to earn instant rewards!
             </p>
           </div>
         ) : (
@@ -158,35 +156,6 @@ export const FriendsTab: React.FC<FriendsTabProps> = ({
             ))}
           </div>
         )}
-
-        {/* Demo simulator triggers */}
-        <div className="pt-3 mt-3 border-t border-white/5 flex items-center justify-between gap-2">
-          <span className="text-[10px] text-slate-400 font-semibold uppercase">Test Invite Join:</span>
-          <div className="flex items-center gap-1.5">
-            <button
-              id="simulate-standard-friend-btn"
-              onClick={() => {
-                soundFx.playReward();
-                onSimulateInvite(false);
-              }}
-              className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 flex items-center gap-1"
-            >
-              <UserPlus className="w-3 h-3 text-slate-300" />
-              <span>+Standard</span>
-            </button>
-            <button
-              id="simulate-premium-friend-btn"
-              onClick={() => {
-                soundFx.playReward();
-                onSimulateInvite(true);
-              }}
-              className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 flex items-center gap-1"
-            >
-              <Sparkles className="w-3 h-3 text-amber-400" />
-              <span>+Premium</span>
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Invite Buttons */}

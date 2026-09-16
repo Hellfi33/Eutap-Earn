@@ -125,7 +125,9 @@ export const AlphabetGestureLayer: React.FC<AlphabetGestureLayerProps> = ({
       target?.closest('a') ||
       target?.closest('input') ||
       target?.closest('#user-coin-balance-container') ||
-      target?.closest('.balance-hold-trigger');
+      target?.closest('.balance-hold-trigger') ||
+      target?.closest('#tap-attached-energy-boost') ||
+      target?.closest('#btn-boost');
     if (isInteractive) {
       return;
     }

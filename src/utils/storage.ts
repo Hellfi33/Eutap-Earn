@@ -18,6 +18,7 @@ export const INITIAL_STATE: GameState = {
   stage: 1,
   reserveBalance: 80.00,
   diamonds: 0,
+  keys: 0,
 
   streakDay: 0,
   lastClaimDate: null,
@@ -101,6 +102,7 @@ export function loadGameState(): GameState {
       stage: typeof parsed.stage === 'number' ? parsed.stage : 1,
       reserveBalance: typeof parsed.reserveBalance === 'number' ? parsed.reserveBalance : 80.00,
       diamonds: typeof parsed.diamonds === 'number' ? parsed.diamonds : 0,
+      keys: typeof parsed.keys === 'number' ? parsed.keys : 0,
       energy: restoredEnergy,
       lastEnergyTimestamp: now,
       cipherWord: todayCipherWord,

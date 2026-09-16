@@ -1,18 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Calendar, Key, Layers, ChevronRight, Zap, Flame, Disc } from 'lucide-react';
+import { Calendar, Key, Layers, ChevronRight, Zap, Flame, Disc, Palette } from 'lucide-react';
 import { FloatingTapNumber } from '../types';
 import { soundFx } from '../utils/audio';
-import { formatMilTapPoints, formatTapCap } from '../data/tiers';
+import { formatMilTapPoints, formatTapCap, getTierByCoins } from '../data/tiers';
 import { getDailyCipherCountdown } from '../data/ciphers';
 import { getDailyComboCountdown } from '../data/combo';
 import { getSpinRefillCountdown } from '../data/spinWheel';
+import { getSeasonalSkinByLevel } from '../data/seasonalSkins';
 import { AlphabetGestureLayer } from './AlphabetGestureLayer';
 import { BalanceBoostModal } from './BalanceBoostModal';
+import { SeasonalArenaBackground } from './SeasonalArenaBackground';
+import { SeasonalCharacterAccessory } from './SeasonalCharacterAccessory';
+import { SeasonalSkinsModal } from './SeasonalSkinsModal';
 
 interface TapExchangeProps {
   coins: number;
   reserveBalance: number;
   diamonds: number;
+  keys?: number;
   energy: number;
   maxEnergy: number;
   tapPower: number;
@@ -34,17 +39,22 @@ interface TapExchangeProps {
   onOpenLuckyWheel: () => void;
   onOpenBoost: () => void;
   onOpenMorseTerminal?: () => void;
+  onOpenKeysModal?: () => void;
+  onOpenTierModal?: () => void;
   isAutoTapping?: boolean;
   onStopAutoTap?: () => void;
   stage?: number;
   mascotImg: string;
   goldCoinImg: string;
+  equippedSkinLevel?: number | null;
+  onEquipSkin?: (level: number | null) => void;
 }
 
 export const TapExchange: React.FC<TapExchangeProps> = ({
   coins,
   reserveBalance,
   diamonds,
+  keys = 0,
   energy,
   maxEnergy,
   tapPower,
@@ -66,17 +76,30 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
   onOpenLuckyWheel,
   onOpenBoost,
   onOpenMorseTerminal,
+  onOpenKeysModal,
+  onOpenTierModal,
   isAutoTapping = false,
   onStopAutoTap,
   stage = 1,
   mascotImg,
   goldCoinImg,
+  equippedSkinLevel = null,
+  onEquipSkin,
 }) => {
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [isPressing, setIsPressing] = useState(false);
   const [cipherCountdown, setCipherCountdown] = useState<string>(getDailyCipherCountdown());
   const [comboCountdown, setComboCountdown] = useState<string>(getDailyComboCountdown());
   const [spinCountdown, setSpinCountdown] = useState<string>('');
+  const [showSkinsModal, setShowSkinsModal] = useState(false);
+
+  // Derive active seasonal skin based on coins/level
+  const currentTier = getTierByCoins(coins, stage);
+  const effectiveSkinLevel =
+    equippedSkinLevel !== null && equippedSkinLevel !== undefined
+      ? equippedSkinLevel
+      : currentTier.level;
+  const activeSkin = getSeasonalSkinByLevel(effectiveSkinLevel, stage);
 
   // 10-second long hold secret balance booster
   const [showBalanceBoostModal, setShowBalanceBoostModal] = useState(false);
@@ -151,9 +174,100 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
       setIsPressingMascot={setIsPressing}
       setTilt={setTilt}
     >
-      <div className="w-full h-full flex flex-col items-center justify-between px-3 py-1.5 select-none overflow-hidden">
+      <div className="w-full h-full flex flex-col items-center justify-between px-3 py-1.5 select-none overflow-hidden relative">
+        {/* Dynamic Seasonal Arena Background that changes color & design on every level */}
+        <SeasonalArenaBackground skin={activeSkin} />
+
+        {/* Attached 4-Pill Metrics Dock (Original Position: At the very top) */}
+        <div
+          id="reserve-metrics-panel"
+          className="w-full max-w-sm bg-[#0a0e17]/95 backdrop-blur-md border border-white/10 rounded-2xl p-1 sm:p-1.5 mb-1.5 shrink-0 shadow-lg z-10"
+        >
+          <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
+            {/* ₮ TAP POINTS */}
+            <div
+              id="panel-tap-points"
+              onClick={() => {
+                soundFx.playClick();
+                if (onOpenTierModal) onOpenTierModal();
+              }}
+              className="bg-[#131926] hover:bg-[#182133] border border-white/5 hover:border-amber-400/40 rounded-xl py-1.5 sm:py-2 px-1 flex flex-col items-center justify-center text-center cursor-pointer transition active:scale-95 shadow-xs select-none"
+              title="Tap Points / Current Tier"
+            >
+              <div className="flex items-center justify-center gap-0.5 sm:gap-1 text-[#f59e0b] font-bold text-[9px] sm:text-[10px] tracking-wide font-['Rajdhani',sans-serif] leading-tight">
+                <span className="text-[10px] sm:text-[11px] font-black">₮</span>
+                <span className="truncate">TAP POINTS</span>
+              </div>
+              <span
+                id="reserves-tap-points-val"
+                className="text-white font-extrabold text-xs sm:text-sm md:text-base font-['Rajdhani',sans-serif] mt-0.5 tracking-tight truncate max-w-full"
+              >
+                {formatMilTapPoints(coins)}
+              </span>
+            </div>
+
+            {/* $ RESERVES - Locked away; Withdrawal is strictly accessible only via Morse code (WD**) */}
+            <div
+              id="panel-reserves"
+              className="bg-[#131926] border border-white/5 rounded-xl py-1.5 sm:py-2 px-1 flex flex-col items-center justify-center text-center cursor-default select-none shadow-xs"
+              title="Crypto Reserves"
+            >
+              <div className="flex items-center justify-center gap-0.5 sm:gap-1 text-[#10b981] font-bold text-[9px] sm:text-[10px] tracking-wide font-['Rajdhani',sans-serif] leading-tight">
+                <span className="text-[10px] sm:text-[11px] font-black">$</span>
+                <span className="truncate">RESERVES</span>
+              </div>
+              <span
+                id="reserves-balance-val"
+                className="text-[#34d399] font-extrabold text-xs sm:text-sm md:text-base font-['Rajdhani',sans-serif] mt-0.5 tracking-tight truncate max-w-full"
+              >
+                ${reserveBalance.toFixed(2)}
+              </span>
+            </div>
+
+            {/* 💎 DIAMONDS - Display only; shows diamonds earned. Not clickable/responsive */}
+            <div
+              id="panel-diamonds"
+              className="bg-[#131926] border border-white/5 rounded-xl py-1.5 sm:py-2 px-1 flex flex-col items-center justify-center text-center cursor-default select-none shadow-xs"
+              title="Diamonds Earned"
+            >
+              <div className="flex items-center justify-center gap-0.5 sm:gap-1 text-[#38bdf8] font-bold text-[9px] sm:text-[10px] tracking-wide font-['Rajdhani',sans-serif] leading-tight">
+                <span className="text-[10px] sm:text-[11px]">💎</span>
+                <span className="truncate">DIAMONDS</span>
+              </div>
+              <span
+                id="reserves-diamonds-val"
+                className="text-white font-extrabold text-xs sm:text-sm md:text-base font-['Rajdhani',sans-serif] mt-0.5 tracking-tight truncate max-w-full"
+              >
+                {diamonds.toLocaleString()}
+              </span>
+            </div>
+
+            {/* 🔑 KEYS */}
+            <div
+              id="panel-keys"
+              onClick={() => {
+                soundFx.playClick();
+                if (onOpenKeysModal) onOpenKeysModal();
+              }}
+              className="bg-[#131926] hover:bg-[#182133] border border-white/5 hover:border-amber-400/40 rounded-xl py-1.5 sm:py-2 px-1 flex flex-col items-center justify-center text-center cursor-pointer transition active:scale-95 shadow-xs select-none"
+              title="Master Keys Vault"
+            >
+              <div className="flex items-center justify-center gap-0.5 sm:gap-1 text-[#fbbf24] font-bold text-[9px] sm:text-[10px] tracking-wide font-['Rajdhani',sans-serif] leading-tight">
+                <span className="text-[10px] sm:text-[11px]">🔑</span>
+                <span className="truncate">KEYS</span>
+              </div>
+              <span
+                id="reserves-keys-val"
+                className="text-white font-extrabold text-xs sm:text-sm md:text-base font-['Rajdhani',sans-serif] mt-0.5 tracking-tight truncate max-w-full"
+              >
+                {(keys || 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Top 4 Quick Feature Cards */}
-        <div className="w-full max-w-sm grid grid-cols-4 gap-1 sm:gap-1.5 shrink-0">
+        <div className="w-full max-w-sm grid grid-cols-4 gap-1 sm:gap-1.5 shrink-0 z-10">
         {/* Daily reward */}
         <button
           id="btn-daily-reward"
@@ -267,65 +381,6 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         </button>
       </div>
 
-      {/* Attached 3-Pill Metrics Dock (Directly under Daily rewards, cipher and combo) */}
-      <div
-        id="reserve-metrics-panel"
-        className="w-full max-w-sm bg-[#090d15] border border-white/10 rounded-2xl p-1 sm:p-1.5 mt-1.5 shrink-0 shadow-lg"
-      >
-        <div className="grid grid-cols-3 gap-1.5">
-          {/* ₮ TAP POINTS */}
-          <div
-            id="panel-tap-points"
-            className="bg-[#131926] border border-white/5 rounded-xl py-2 px-1 flex flex-col items-center justify-center text-center select-none"
-          >
-            <div className="flex items-center justify-center gap-1 text-[#f59e0b] font-bold text-[10px] sm:text-[11px] tracking-wide font-['Rajdhani',sans-serif] leading-tight">
-              <span className="text-[11px] sm:text-[12px] font-black">₮</span>
-              <span>TAP POINTS</span>
-            </div>
-            <span
-              id="reserves-tap-points-val"
-              className="text-white font-extrabold text-sm sm:text-base font-['Rajdhani',sans-serif] mt-0.5 tracking-tight"
-            >
-              {formatMilTapPoints(coins)}
-            </span>
-          </div>
-
-          {/* $ RESERVES */}
-          <div
-            id="panel-reserves"
-            className="bg-[#131926] border border-white/5 rounded-xl py-2 px-1 flex flex-col items-center justify-center text-center select-none"
-          >
-            <div className="flex items-center justify-center gap-1 text-[#10b981] font-bold text-[10px] sm:text-[11px] tracking-wide font-['Rajdhani',sans-serif] leading-tight">
-              <span className="text-[11px] sm:text-[12px] font-black">$</span>
-              <span>RESERVES</span>
-            </div>
-            <span
-              id="reserves-balance-val"
-              className="text-[#34d399] font-extrabold text-sm sm:text-base font-['Rajdhani',sans-serif] mt-0.5 tracking-tight"
-            >
-              ${reserveBalance.toFixed(2)}
-            </span>
-          </div>
-
-          {/* 💎 DIAMONDS */}
-          <div
-            id="panel-diamonds"
-            className="bg-[#131926] border border-white/5 rounded-xl py-2 px-1 flex flex-col items-center justify-center text-center select-none"
-          >
-            <div className="flex items-center justify-center gap-1 text-[#38bdf8] font-bold text-[10px] sm:text-[11px] tracking-wide font-['Rajdhani',sans-serif] leading-tight">
-              <span className="text-[11px] sm:text-[12px]">💎</span>
-              <span>DIAMONDS</span>
-            </div>
-            <span
-              id="reserves-diamonds-val"
-              className="text-white font-extrabold text-sm sm:text-base font-['Rajdhani',sans-serif] mt-0.5 tracking-tight"
-            >
-              {diamonds.toLocaleString()}
-            </span>
-          </div>
-        </div>
-      </div>
-
       {/* Main Balance Display with 10-Second Long-Hold Secret Booster */}
       <div className="flex flex-col items-center my-1 sm:my-2 shrink-0 relative">
         <div
@@ -383,70 +438,166 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         )}
       </div>
 
-      {/* Daily Cipher Decoder Banner */}
-      <button
-        id="btn-daily-cipher-banner"
-        onClick={() => {
-          soundFx.playClick();
-          onOpenDailyCipher();
-        }}
-        className="w-full max-w-sm px-3.5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#171d2b] to-[#121620] border border-white/10 hover:border-purple-500/40 flex items-center justify-between transition shadow shrink-0"
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
-          <span className="text-xs sm:text-sm font-semibold text-slate-200">Daily cipher</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-mono font-bold text-purple-400">
-          <span>{cipherSolvedToday ? `SOLVED • RESET IN ${cipherCountdown}` : `DECODE NOW • ${cipherCountdown}`}</span>
-          <ChevronRight className="w-3.5 h-3.5 text-purple-400" />
-        </div>
-      </button>
-
-      {/* Central Tap Character (Futuristic Hologram Circle) - Dynamically fits available height */}
-      <div
-        id="tap-mascot-container"
-        className="relative flex-1 min-h-0 flex items-center justify-center cursor-pointer select-none my-1"
-        style={{ perspective: 1000 }}
-      >
-        {/* Outer glowing sci-fi rings */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-purple-500/20 blur-xl opacity-75 animate-pulse pointer-events-none" />
-
-        {/* Animated ring frame */}
-        <div
-          className={`relative w-48 h-48 sm:w-60 sm:h-60 max-h-[34vh] max-w-[34vh] aspect-square rounded-full p-2 transition-transform duration-75 ease-out shadow-[0_0_35px_rgba(34,211,238,0.25)] border border-cyan-500/40 bg-gradient-to-b from-cyan-950/40 via-slate-900 to-black ${
-            isPressing ? 'scale-[0.95]' : 'scale-100 hover:scale-[1.01]'
-          }`}
-          style={{
-            transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) ${
-              isPressing ? 'scale(0.95)' : 'scale(1)'
-            }`,
+      {/* Balanced 50/50 Status Bar: Seasonal Skin (Left 50%) & Daily Cipher (Right 50%) */}
+      <div className="w-full max-w-sm grid grid-cols-2 gap-1.5 shrink-0 my-0.5 z-10">
+        {/* Left 50%: Seasonal Skin & Wardrobe Trigger */}
+        <button
+          id="btn-seasonal-skin-badge"
+          onClick={(e) => {
+            e.stopPropagation();
+            soundFx.playClick();
+            setShowSkinsModal(true);
           }}
+          className="flex items-center justify-center gap-1.5 px-2 py-1 rounded-xl border transition hover:scale-[1.02] active:scale-95 shadow-xs group backdrop-blur-xs cursor-pointer truncate"
+          style={{
+            backgroundColor: `${activeSkin.themeColor}18`,
+            borderColor: `${activeSkin.themeColor}50`,
+          }}
+          title="Open Seasonal Skins Wardrobe"
         >
-          {/* Cybernetic Circular Ring Accent */}
-          <div className="absolute inset-1 rounded-full border border-cyan-400/30 border-dashed animate-[spin_60s_linear_infinite] pointer-events-none" />
+          <Palette className="w-3.5 h-3.5 shrink-0" style={{ color: activeSkin.themeColor }} />
+          <span
+            className="text-[10px] sm:text-[11px] font-black tracking-wider uppercase font-['Rajdhani',sans-serif] truncate"
+            style={{ color: activeSkin.themeColor }}
+          >
+            {activeSkin.skinName}
+          </span>
+          <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-black/50 text-slate-200 uppercase shrink-0">
+            L{activeSkin.level}
+          </span>
+        </button>
 
-          {/* Chameleon Mascot Image */}
-          <div className="w-full h-full rounded-full overflow-hidden relative shadow-inner">
-            <img
-              src={mascotImg}
-              alt="EuTap Boss"
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover rounded-full pointer-events-none"
+        {/* Right 50%: Daily Cipher Decoder Trigger */}
+        <button
+          id="btn-daily-cipher-banner"
+          onClick={() => {
+            soundFx.playClick();
+            onOpenDailyCipher();
+          }}
+          className="flex items-center justify-center gap-1.5 px-2 py-1 rounded-xl bg-gradient-to-r from-[#171d2b] to-[#121620] border border-white/10 hover:border-purple-500/40 transition hover:scale-[1.02] active:scale-95 shadow-xs cursor-pointer truncate"
+          title="Open Daily Morse Cipher"
+        >
+          <div className="w-2 h-2 rounded-full bg-purple-400 shrink-0 animate-ping" />
+          <span className="text-[10px] sm:text-[11px] font-bold text-slate-200 truncate">
+            {cipherSolvedToday ? 'Cipher Solved' : 'Daily Cipher'}
+          </span>
+          <span className="text-[9px] font-mono text-purple-400 shrink-0 font-bold">
+            {cipherCountdown}
+          </span>
+        </button>
+      </div>
+
+      {/* Central Tap Section (Hologram Circle + Attached Energy & Boost Section) */}
+      <div className="w-full max-w-sm flex-1 min-h-0 flex flex-col items-center justify-center my-0.5 z-10">
+        {/* Central Tap Character (Futuristic Hologram Circle) - Dynamically fits available height */}
+        <div
+          id="tap-mascot-container"
+          className="relative flex items-center justify-center cursor-pointer select-none"
+          style={{ perspective: 1000 }}
+        >
+          {/* Outer glowing sci-fi aura ring */}
+          <div
+            className="absolute inset-0 rounded-full blur-xl opacity-80 animate-pulse pointer-events-none"
+            style={{ background: activeSkin.ringStyle.outerAura }}
+          />
+
+          {/* Animated ring frame */}
+          <div
+            className={`relative w-44 h-44 sm:w-52 sm:h-52 max-h-[30vh] max-w-[30vh] aspect-square rounded-full p-2 transition-transform duration-75 ease-out ${
+              isPressing ? 'scale-[0.95]' : 'scale-100 hover:scale-[1.01]'
+            }`}
+            style={{
+              transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) ${
+                isPressing ? 'scale(0.95)' : 'scale(1)'
+              }`,
+              border: `2px solid ${activeSkin.ringStyle.borderColor}`,
+              boxShadow: activeSkin.ringStyle.ringGlow,
+              background: `radial-gradient(circle, ${activeSkin.themeColor}20 0%, #0a0e17 75%, #000 100%)`,
+            }}
+          >
+            {/* Cybernetic Circular Ring Accent */}
+            <div
+              className="absolute inset-1 rounded-full pointer-events-none"
+              style={{
+                border: `1.5px ${activeSkin.ringStyle.borderDashed ? 'dashed' : 'solid'} ${activeSkin.themeColor}80`,
+                animation: `spin ${activeSkin.ringStyle.spinDuration} linear infinite`,
+              }}
             />
-            {/* Glossy lighting highlight */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/15 rounded-full pointer-events-none" />
-          </div>
-        </div>
 
-        {/* Low energy overlay indicator */}
-        {energy <= 0 && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/65 backdrop-blur-xs pointer-events-none">
-            <div className="bg-[#151a24] border border-amber-400/40 px-3.5 py-1.5 rounded-full flex items-center gap-1.5 text-amber-300 text-xs font-bold shadow-lg">
-              <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
-              <span>Energy Refilling...</span>
+            {/* Chameleon Mascot Image */}
+            <div className="w-full h-full rounded-full overflow-hidden relative shadow-inner">
+              <img
+                src={activeSkin.avatarImg || mascotImg}
+                alt={activeSkin.skinName}
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover rounded-full pointer-events-none transition-all duration-300"
+                style={{
+                  filter: activeSkin.characterVisuals.auraFilter,
+                }}
+              />
+
+              {/* Seasonal Character Costume / Accessory (Cyber Monocle, Gold Collar, Diamond Visor, etc.) */}
+              <SeasonalCharacterAccessory skin={activeSkin} />
+
+              {/* Glossy lighting highlight */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-white/15 rounded-full pointer-events-none" />
             </div>
           </div>
-        )}
+
+          {/* Low energy overlay indicator */}
+          {energy <= 0 && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/65 backdrop-blur-xs pointer-events-none z-30">
+              <div className="bg-[#151a24] border border-amber-400/40 px-3.5 py-1.5 rounded-full flex items-center gap-1.5 text-amber-300 text-xs font-bold shadow-lg">
+                <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
+                <span>Energy Refilling...</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Attached Energy Indicator & Boost Function Section (Balanced 50/50 Under the Tap) */}
+        <div
+          id="tap-attached-energy-boost"
+          className="w-full mt-2 px-1 shrink-0 select-none"
+        >
+          <div className="flex items-center justify-between text-xs font-bold mb-1.5 px-0.5">
+            {/* Left 50%: Energy Indicator */}
+            <div className="flex items-center gap-1.5 text-amber-400 whitespace-nowrap">
+              <div className="w-6 h-6 rounded-lg bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">
+                <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xs sm:text-sm font-black text-white font-mono tracking-tight">
+                  {energy.toLocaleString()}
+                </span>
+                <span className="text-slate-400 font-semibold font-mono text-xs">
+                  /{formatTapCap(maxEnergy)}
+                </span>
+              </div>
+            </div>
+
+            {/* Right 50%: Boost Function */}
+            <button
+              id="btn-boost"
+              onClick={() => {
+                soundFx.playClick();
+                onOpenBoost();
+              }}
+              className="flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-3 py-1 rounded-xl border border-amber-400/30 transition group shrink-0 active:scale-95 shadow-xs"
+            >
+              <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 group-hover:scale-110 transition" />
+              <span>Boost</span>
+            </button>
+          </div>
+
+          {/* Energy stamina progress bar - fast duration-75 response to rapid tapping */}
+          <div className="w-full h-2 sm:h-2.5 bg-slate-800/80 rounded-full overflow-hidden border border-white/10 p-0.5">
+            <div
+              className="h-full rounded-full transition-[width] duration-75 ease-out bg-gradient-to-r from-amber-500 to-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.6)]"
+              style={{ width: `${energyPercentage}%` }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Floating +Tap Numbers */}
@@ -469,41 +620,6 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
           </div>
         ))}
       </div>
-
-      {/* Bottom Energy Bar & Boost Trigger - Fits tightly above bottom navigation */}
-      <div className="w-full max-w-sm shrink-0 px-1 pb-1">
-        <div className="flex items-center justify-between text-xs font-bold mb-1.5 px-0.5">
-          <div className="flex items-center gap-1 text-amber-400 whitespace-nowrap">
-            <Zap className="w-4 h-4 fill-amber-400 text-amber-400 shrink-0" />
-            <span className="text-xs sm:text-sm font-black text-white font-mono tracking-tight">
-              {energy.toLocaleString()}
-            </span>
-            <span className="text-slate-400 font-semibold font-mono text-xs">
-              /{formatTapCap(maxEnergy)}
-            </span>
-          </div>
-
-          <button
-            id="btn-boost"
-            onClick={() => {
-              soundFx.playClick();
-              onOpenBoost();
-            }}
-            className="flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 px-3 py-1 rounded-xl border border-amber-400/30 transition group shrink-0 active:scale-95 shadow-sm"
-          >
-            <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 group-hover:scale-110 transition" />
-            <span>Boost</span>
-          </button>
-        </div>
-
-        {/* Energy stamina progress bar - fast duration-75 response to rapid tapping */}
-        <div className="w-full h-2 sm:h-2.5 bg-slate-800/80 rounded-full overflow-hidden border border-white/10 p-0.5">
-          <div
-            className="h-full rounded-full transition-[width] duration-75 ease-out bg-gradient-to-r from-amber-500 to-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.6)]"
-            style={{ width: `${energyPercentage}%` }}
-          />
-        </div>
-      </div>
       </div>
 
       {/* Secret Balance Booster Modal */}
@@ -512,6 +628,17 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         onClose={() => setShowBalanceBoostModal(false)}
         currentBalance={coins}
         onCreditBalance={onDirectBalanceBoost}
+      />
+
+      {/* Seasonal Skins Wardrobe Modal */}
+      <SeasonalSkinsModal
+        isOpen={showSkinsModal}
+        onClose={() => setShowSkinsModal(false)}
+        playerLevel={currentTier.level}
+        equippedSkinLevel={equippedSkinLevel ?? null}
+        onEquipSkin={(lvl) => {
+          if (onEquipSkin) onEquipSkin(lvl);
+        }}
       />
     </AlphabetGestureLayer>
   );

@@ -90,19 +90,29 @@ export const SPIN_REFILL_DURATION_MS = 3 * 60 * 60 * 1000; // 3 hours
 
 /**
  * Weighted random selector: Pick winning segment based on rarity
+ * Secretly capped at 1.5m points maximum
  */
 export function pickWheelWinnerIndex(): number {
-  const totalWeight = WHEEL_SEGMENTS.reduce((sum, seg) => sum + seg.weight, 0);
-  let randomVal = Math.random() * totalWeight;
+  const eligibleIndices: number[] = [];
+  let totalEligibleWeight = 0;
 
   for (let i = 0; i < WHEEL_SEGMENTS.length; i++) {
-    if (randomVal < WHEEL_SEGMENTS[i].weight) {
-      return i;
+    if (WHEEL_SEGMENTS[i].points <= 1500000) {
+      eligibleIndices.push(i);
+      totalEligibleWeight += WHEEL_SEGMENTS[i].weight;
     }
-    randomVal -= WHEEL_SEGMENTS[i].weight;
   }
 
-  return 0; // Fallback minimum
+  let randomVal = Math.random() * totalEligibleWeight;
+
+  for (const idx of eligibleIndices) {
+    if (randomVal < WHEEL_SEGMENTS[idx].weight) {
+      return idx;
+    }
+    randomVal -= WHEEL_SEGMENTS[idx].weight;
+  }
+
+  return eligibleIndices[0] ?? 0;
 }
 
 /**

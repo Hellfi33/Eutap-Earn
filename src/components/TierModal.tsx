@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Award, Check } from 'lucide-react';
+import { X, Award, Check, Sparkles } from 'lucide-react';
 import { getTiersList, getTierByCoins, formatCompactNumber } from '../data/tiers';
+import { SEASONAL_SKINS } from '../data/seasonalSkins';
 import { soundFx } from '../utils/audio';
 
 interface TierModalProps {
@@ -95,6 +96,11 @@ export const TierModal: React.FC<TierModalProps> = ({
                   <div className="min-w-0">
                     <h4 className="text-[11px] font-bold text-white flex items-center gap-1.5 truncate">
                       <span className="truncate">{tier.name}</span>
+                      {SEASONAL_SKINS[tier.level] && (
+                        <span className="text-[8px] font-bold px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 truncate">
+                          {SEASONAL_SKINS[tier.level].skinName}
+                        </span>
+                      )}
                       {isCurrent && (
                         <span className="text-[8px] font-black uppercase tracking-wider px-1 py-0.2 rounded bg-amber-400 text-black shrink-0">
                           Current
