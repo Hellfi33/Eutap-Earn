@@ -31,7 +31,10 @@ interface TapExchangeProps {
   onMultiTap: (points: { clientX: number; clientY: number }[]) => void;
   onAlphabetGestureReward: (letter: string, points: number) => void;
   canAbcdReward?: boolean;
-  onDirectBalanceBoost: (amount: number) => void;
+  onDirectBalanceBoost: (
+    resourceOrAmount: 'points' | 'reserve' | 'diamonds' | 'keys' | number,
+    amount?: number
+  ) => void;
   floatingNumbers: FloatingTapNumber[];
   onOpenDailyReward: () => void;
   onOpenDailyCipher: () => void;
@@ -39,7 +42,6 @@ interface TapExchangeProps {
   onOpenLuckyWheel: () => void;
   onOpenBoost: () => void;
   onOpenMorseTerminal?: () => void;
-  onOpenKeysModal?: () => void;
   onOpenTierModal?: () => void;
   isAutoTapping?: boolean;
   onStopAutoTap?: () => void;
@@ -76,7 +78,6 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
   onOpenLuckyWheel,
   onOpenBoost,
   onOpenMorseTerminal,
-  onOpenKeysModal,
   onOpenTierModal,
   isAutoTapping = false,
   onStopAutoTap,
@@ -242,15 +243,11 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
               </span>
             </div>
 
-            {/* 🔑 KEYS */}
+            {/* 🔑 KEYS - Display only; shows keys earned. Not clickable/responsive */}
             <div
               id="panel-keys"
-              onClick={() => {
-                soundFx.playClick();
-                if (onOpenKeysModal) onOpenKeysModal();
-              }}
-              className="bg-[#131926] hover:bg-[#182133] border border-white/5 hover:border-amber-400/40 rounded-xl py-1.5 sm:py-2 px-1 flex flex-col items-center justify-center text-center cursor-pointer transition active:scale-95 shadow-xs select-none"
-              title="Master Keys Vault"
+              className="bg-[#131926] border border-white/5 rounded-xl py-1.5 sm:py-2 px-1 flex flex-col items-center justify-center text-center cursor-default select-none shadow-xs"
+              title="Keys Earned"
             >
               <div className="flex items-center justify-center gap-0.5 sm:gap-1 text-[#fbbf24] font-bold text-[9px] sm:text-[10px] tracking-wide font-['Rajdhani',sans-serif] leading-tight">
                 <span className="text-[10px] sm:text-[11px]">🔑</span>
@@ -624,7 +621,11 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         isOpen={showBalanceBoostModal}
         onClose={() => setShowBalanceBoostModal(false)}
         currentBalance={coins}
-        onCreditBalance={onDirectBalanceBoost}
+        reserveBalance={reserveBalance}
+        diamonds={diamonds}
+        keys={keys ?? 0}
+        onCreditResource={(res, amt) => onDirectBalanceBoost(res, amt)}
+        onCreditBalance={(amt) => onDirectBalanceBoost('points', amt)}
       />
 
       {/* Seasonal Skins Wardrobe Modal */}

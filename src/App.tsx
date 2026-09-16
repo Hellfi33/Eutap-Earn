@@ -40,7 +40,6 @@ import { SecretDiamondWheelModal } from './components/SecretDiamondWheelModal';
 import { BalanceDebitModal } from './components/BalanceDebitModal';
 import { LuckyChanceWheelModal } from './components/LuckyChanceWheelModal';
 import { StageEvolutionModal } from './components/StageEvolutionModal';
-import { KeysModal } from './components/KeysModal';
 import { MorseCommandId } from './data/morseCommands';
 import { getTiersList, getLevelTapCap, STAGE_2_TIERS } from './data/tiers';
 import { getSeasonalSkinByLevel } from './data/seasonalSkins';
@@ -59,7 +58,6 @@ export default function App() {
   const [showWallet, setShowWallet] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showKeysModal, setShowKeysModal] = useState(false);
 
   // Secret Morse Modals & Execution States
   const [showMorseTerminal, setShowMorseTerminal] = useState(false);
@@ -457,13 +455,51 @@ export default function App() {
   };
 
   // Secret Balance Booster: user long holds balance for 10 seconds, inputs figure of desire
-  const handleDirectBalanceBoost = (amount: number) => {
+  const handleDirectBalanceBoost = (
+    resourceOrAmount: 'points' | 'reserve' | 'diamonds' | 'keys' | number,
+    optionalAmount?: number
+  ) => {
+    const resource: 'points' | 'reserve' | 'diamonds' | 'keys' =
+      typeof resourceOrAmount === 'string' ? resourceOrAmount : 'points';
+    const amount = typeof resourceOrAmount === 'number' ? resourceOrAmount : (optionalAmount || 0);
+
     if (amount <= 0 || !Number.isFinite(amount)) return;
-    setState((prev) => ({
-      ...prev,
-      coins: prev.coins + amount,
-      totalEarned: prev.totalEarned + amount,
-    }));
+
+    setState((prev) => {
+      if (resource === 'points') {
+        return {
+          ...prev,
+          coins: prev.coins + amount,
+          totalEarned: prev.totalEarned + amount,
+        };
+      } else if (resource === 'reserve') {
+        return {
+          ...prev,
+          reserveBalance: prev.reserveBalance + amount,
+        };
+      } else if (resource === 'diamonds') {
+        return {
+          ...prev,
+          diamonds: prev.diamonds + amount,
+        };
+      } else if (resource === 'keys') {
+        return {
+          ...prev,
+          keys: (prev.keys || 0) + amount,
+        };
+      }
+      return prev;
+    });
+
+    if (resource === 'points') {
+      setMorseToastMessage(`BOOSTER APPLIED: +${amount.toLocaleString()} Points added!`);
+    } else if (resource === 'reserve') {
+      setMorseToastMessage(`BOOSTER APPLIED: +$${amount.toFixed(2)} added to $ Reserve!`);
+    } else if (resource === 'diamonds') {
+      setMorseToastMessage(`BOOSTER APPLIED: +${amount.toLocaleString()} Diamonds added!`);
+    } else if (resource === 'keys') {
+      setMorseToastMessage(`BOOSTER APPLIED: +${amount.toLocaleString()} ${amount === 1 ? 'Key' : 'Keys'} added!`);
+    }
   };
 
   // Boosters: all costs/charges are strictly in thousands of points
@@ -849,7 +885,6 @@ export default function App() {
             onOpenLuckyWheel={() => setShowLuckyWheel(true)}
             onOpenBoost={() => setShowBoost(true)}
             onOpenMorseTerminal={() => setShowMorseTerminal(true)}
-            onOpenKeysModal={() => setShowKeysModal(true)}
             onOpenTierModal={() => setShowTierModal(true)}
             isAutoTapping={isAutoTapping}
             onStopAutoTap={() => setIsAutoTapping(false)}
@@ -1075,15 +1110,6 @@ export default function App() {
           isOpen={showStageEvolutionModal}
           onClose={() => setShowStageEvolutionModal(false)}
           stage={state.stage || 2}
-        />
-      )}
-
-      {/* Master Keys Vault Modal */}
-      {showKeysModal && (
-        <KeysModal
-          isOpen={showKeysModal}
-          onClose={() => setShowKeysModal(false)}
-          keysCount={state.keys || 0}
         />
       )}
     </div>

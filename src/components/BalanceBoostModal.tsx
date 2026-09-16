@@ -1,21 +1,140 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Sparkles, Zap, CheckCircle2, ArrowRight, X, TrendingUp, Lock, Unlock, KeyRound, ShieldAlert, Eye, EyeOff } from 'lucide-react';
+import {
+  Sparkles,
+  Zap,
+  CheckCircle2,
+  ArrowRight,
+  X,
+  TrendingUp,
+  Lock,
+  Unlock,
+  KeyRound,
+  ShieldAlert,
+  Eye,
+  EyeOff,
+  DollarSign,
+  Gem,
+  Key,
+  Coins,
+} from 'lucide-react';
 import { soundFx } from '../utils/audio';
+
+export type BoostResourceType = 'points' | 'reserve' | 'diamonds' | 'keys';
 
 interface BalanceBoostModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentBalance: number;
-  onCreditBalance: (amount: number) => void;
+  reserveBalance?: number;
+  diamonds?: number;
+  keys?: number;
+  onCreditBalance?: (amount: number) => void;
+  onCreditResource?: (resource: BoostResourceType, amount: number) => void;
 }
 
 const SECRET_BOOSTER_PASSWORD = 'SecretBoo';
+
+const RESOURCE_CONFIG: Record<
+  BoostResourceType,
+  {
+    name: string;
+    shortName: string;
+    unit: string;
+    icon: React.ComponentType<{ className?: string }>;
+    activeBg: string;
+    activeBorder: string;
+    activeText: string;
+    supportsHint: string;
+    placeholder: string;
+    presets: { label: string; value: number }[];
+    formatValue: (val: number) => string;
+  }
+> = {
+  points: {
+    name: 'Points Balance',
+    shortName: 'Points',
+    unit: 'PTS',
+    icon: Coins,
+    activeBg: 'bg-amber-500/20',
+    activeBorder: 'border-amber-400',
+    activeText: 'text-amber-300',
+    supportsHint: 'Supports 10M, 100M, 1B',
+    placeholder: 'Enter figure e.g. 50,000,000 or 100M',
+    presets: [
+      { label: '+10M', value: 10_000_000 },
+      { label: '+50M', value: 50_000_000 },
+      { label: '+100M', value: 100_000_000 },
+      { label: '+1B', value: 1_000_000_000 },
+    ],
+    formatValue: (val: number) => `${val.toLocaleString()} PTS`,
+  },
+  reserve: {
+    name: '$ Reserve Balance',
+    shortName: '$ Reserve',
+    unit: 'USD',
+    icon: DollarSign,
+    activeBg: 'bg-emerald-500/20',
+    activeBorder: 'border-emerald-400',
+    activeText: 'text-emerald-300',
+    supportsHint: 'Supports $ or decimals e.g. 50.00',
+    placeholder: 'Enter amount e.g. 50, 100, 500',
+    presets: [
+      { label: '+$10', value: 10 },
+      { label: '+$50', value: 50 },
+      { label: '+$100', value: 100 },
+      { label: '+$500', value: 500 },
+    ],
+    formatValue: (val: number) => `$${val.toFixed(2)}`,
+  },
+  diamonds: {
+    name: 'Diamonds Reserve',
+    shortName: 'Diamond',
+    unit: '💎',
+    icon: Gem,
+    activeBg: 'bg-sky-500/20',
+    activeBorder: 'border-sky-400',
+    activeText: 'text-sky-300',
+    supportsHint: 'Supports numbers or K e.g. 500',
+    placeholder: 'Enter diamonds e.g. 10, 50, 500',
+    presets: [
+      { label: '+10 💎', value: 10 },
+      { label: '+50 💎', value: 50 },
+      { label: '+100 💎', value: 100 },
+      { label: '+500 💎', value: 500 },
+    ],
+    formatValue: (val: number) => `${val.toLocaleString()} 💎`,
+  },
+  keys: {
+    name: 'Master Keys Vault',
+    shortName: 'Keys',
+    unit: '🗝️',
+    icon: Key,
+    activeBg: 'bg-orange-500/20',
+    activeBorder: 'border-orange-400',
+    activeText: 'text-orange-300',
+    supportsHint: 'Supports numbers e.g. 5, 20, 100',
+    placeholder: 'Enter keys e.g. 5, 20, 100',
+    presets: [
+      { label: '+5 🗝️', value: 5 },
+      { label: '+10 🗝️', value: 10 },
+      { label: '+25 🗝️', value: 25 },
+      { label: '+100 🗝️', value: 100 },
+    ],
+    formatValue: (val: number) => `${val.toLocaleString()} ${val === 1 ? 'Key' : 'Keys'}`,
+  },
+};
+
+const RESOURCE_KEYS: BoostResourceType[] = ['points', 'reserve', 'diamonds', 'keys'];
 
 export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
   isOpen,
   onClose,
   currentBalance,
+  reserveBalance = 0,
+  diamonds = 0,
+  keys = 0,
   onCreditBalance,
+  onCreditResource,
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -23,10 +142,29 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
   const [authError, setAuthError] = useState<string | null>(null);
   const [isShaking, setIsShaking] = useState(false);
 
+  const [selectedResource, setSelectedResource] = useState<BoostResourceType>('points');
   const [inputValue, setInputValue] = useState('');
-  const [justCredited, setJustCredited] = useState<number | null>(null);
+  const [justCredited, setJustCredited] = useState<{ resource: BoostResourceType; amount: number } | null>(null);
+
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const figureInputRef = useRef<HTMLInputElement>(null);
+
+  const config = RESOURCE_CONFIG[selectedResource];
+
+  const getCurrentBalance = (resource: BoostResourceType) => {
+    switch (resource) {
+      case 'points':
+        return currentBalance;
+      case 'reserve':
+        return reserveBalance;
+      case 'diamonds':
+        return diamonds;
+      case 'keys':
+        return keys;
+    }
+  };
+
+  const selectedCurrentBalance = getCurrentBalance(selectedResource);
 
   // Reset password state every time modal opens or closes
   useEffect(() => {
@@ -48,14 +186,14 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
     }
   }, [isOpen]);
 
-  // Focus figure input when unlocked
+  // Focus figure input when unlocked or resource changes
   useEffect(() => {
     if (isAuthenticated) {
       setTimeout(() => {
         figureInputRef.current?.focus();
       }, 100);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, selectedResource]);
 
   // Handle password submission
   const handleVerifyPassword = () => {
@@ -73,9 +211,9 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
     }
   };
 
-  // Parse figure input (supports raw numbers, commas, and suffixes like K, M, B, T)
+  // Parse figure input (supports raw numbers, commas, $, and suffixes like K, M, B, T)
   const parsedFigure = useMemo(() => {
-    const clean = inputValue.trim().replace(/,/g, '');
+    const clean = inputValue.trim().replace(/,/g, '').replace(/^\$/, '');
     if (!clean) return 0;
 
     // Check for suffix like 10M, 1B, 500K
@@ -92,8 +230,12 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
     else if (unit === 'B') multiplier = 1_000_000_000;
     else if (unit === 'T') multiplier = 1_000_000_000_000;
 
+    if (selectedResource === 'reserve') {
+      return Math.round(base * multiplier * 100) / 100;
+    }
+
     return Math.floor(base * multiplier);
-  }, [inputValue]);
+  }, [inputValue, selectedResource]);
 
   if (!isOpen) return null;
 
@@ -101,8 +243,13 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
     if (parsedFigure <= 0) return;
 
     soundFx.playReward();
-    onCreditBalance(parsedFigure);
-    setJustCredited(parsedFigure);
+    if (onCreditResource) {
+      onCreditResource(selectedResource, parsedFigure);
+    } else if (onCreditBalance) {
+      onCreditBalance(parsedFigure);
+    }
+
+    setJustCredited({ resource: selectedResource, amount: parsedFigure });
 
     // After brief confirmation, close modal
     setTimeout(() => {
@@ -168,17 +315,16 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
 
         {/* Content Body */}
         <div className="p-5 space-y-4">
-          {/* Current Balance Card */}
-          <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-between">
-            <span className="text-xs text-slate-400 font-medium">Current Balance:</span>
-            <span className="text-base font-black text-white font-['Rajdhani',sans-serif]">
-              {currentBalance.toLocaleString()} PTS
-            </span>
-          </div>
-
           {!isAuthenticated ? (
             /* Password Authentication Screen */
             <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-between">
+                <span className="text-xs text-slate-400 font-medium">Current Points:</span>
+                <span className="text-base font-black text-white font-['Rajdhani',sans-serif]">
+                  {currentBalance.toLocaleString()} PTS
+                </span>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
@@ -255,17 +401,72 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
                     <CheckCircle2 className="w-8 h-8 text-emerald-400" />
                   </div>
                   <div className="text-lg font-black text-emerald-300 font-['Rajdhani',sans-serif]">
-                    +{justCredited.toLocaleString()} POINTS CREDITED!
+                    +{RESOURCE_CONFIG[justCredited.resource].formatValue(justCredited.amount)} CREDITED!
                   </div>
-                  <p className="text-xs text-slate-400">Balance updated successfully</p>
+                  <p className="text-xs text-slate-400">
+                    {RESOURCE_CONFIG[justCredited.resource].name} updated successfully
+                  </p>
                 </div>
               ) : (
                 <>
+                  {/* Select Which Resource to Boost */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
+                      <span>SELECT RESOURCE TO BOOST:</span>
+                      <span className="text-amber-400 text-[10px]">Choose one</span>
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                      {RESOURCE_KEYS.map((resKey) => {
+                        const r = RESOURCE_CONFIG[resKey];
+                        const isSelected = selectedResource === resKey;
+                        const Icon = r.icon;
+                        const bal = getCurrentBalance(resKey);
+                        return (
+                          <button
+                            key={resKey}
+                            type="button"
+                            onClick={() => {
+                              soundFx.playClick();
+                              setSelectedResource(resKey);
+                              setInputValue('');
+                            }}
+                            className={`p-2 rounded-xl border flex flex-col items-center justify-center text-center transition ${
+                              isSelected
+                                ? `${r.activeBg} ${r.activeBorder} ${r.activeText} shadow-[0_0_15px_rgba(251,191,36,0.3)] ring-1 ring-amber-400/60`
+                                : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <Icon className={`w-3.5 h-3.5 ${isSelected ? r.activeText : 'text-slate-400'}`} />
+                              <span className="text-xs font-black font-['Rajdhani',sans-serif] tracking-wider">
+                                {r.shortName}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-mono text-slate-300 font-semibold truncate max-w-full">
+                              {r.formatValue(bal)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Current Balance Card of Selected Resource */}
+                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <config.icon className={`w-4 h-4 ${config.activeText}`} />
+                      <span className="text-xs text-slate-300 font-semibold">{config.name}:</span>
+                    </div>
+                    <span className={`text-base font-black font-['Rajdhani',sans-serif] ${config.activeText}`}>
+                      {config.formatValue(selectedCurrentBalance)}
+                    </span>
+                  </div>
+
                   {/* Figure Input Form */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                      <span>Figure of Desire</span>
-                      <span className="text-[11px] text-amber-400 font-normal">Supports 10M, 100M, 1B</span>
+                      <span>Figure of Desire ({config.shortName})</span>
+                      <span className="text-[11px] text-amber-400 font-normal">{config.supportsHint}</span>
                     </label>
                     <div className="relative">
                       <input
@@ -273,7 +474,7 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
                         type="text"
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
-                        placeholder="Enter figure e.g. 50,000,000 or 100M"
+                        placeholder={config.placeholder}
                         className="w-full px-4 py-3 rounded-xl bg-black/60 border border-amber-400/60 focus:border-amber-400 text-white font-['Rajdhani',sans-serif] font-bold text-lg focus:outline-none focus:ring-2 focus:ring-amber-400/40 tracking-wider placeholder:text-slate-600 placeholder:font-normal placeholder:text-sm"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleSend();
@@ -290,16 +491,11 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Quick Presets */}
+                  {/* Quick Presets for Selected Resource */}
                   <div className="space-y-1.5">
                     <span className="text-[11px] font-semibold text-slate-400">Quick Fill Figures:</span>
                     <div className="grid grid-cols-4 gap-1.5">
-                      {[
-                        { label: '+10M', value: 10_000_000 },
-                        { label: '+50M', value: 50_000_000 },
-                        { label: '+100M', value: 100_000_000 },
-                        { label: '+1B', value: 1_000_000_000 },
-                      ].map((preset) => (
+                      {config.presets.map((preset) => (
                         <button
                           key={preset.label}
                           onClick={() => handleQuickAdd(preset.value)}
@@ -316,10 +512,10 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
                     <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs animate-in fade-in duration-150">
                       <div className="flex items-center gap-1.5 text-amber-300 font-semibold">
                         <TrendingUp className="w-4 h-4" />
-                        <span>New Balance:</span>
+                        <span>New {config.shortName}:</span>
                       </div>
-                      <span className="font-black text-sm text-amber-200 font-['Rajdhani',sans-serif]">
-                        {(currentBalance + parsedFigure).toLocaleString()} PTS
+                      <span className={`font-black text-sm font-['Rajdhani',sans-serif] ${config.activeText}`}>
+                        {config.formatValue(selectedCurrentBalance + parsedFigure)}
                       </span>
                     </div>
                   )}
@@ -341,7 +537,7 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
                       className="w-2/3 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition disabled:opacity-40 shadow-[0_0_20px_rgba(251,191,36,0.4)] active:scale-95"
                     >
                       <Zap className="w-4 h-4 fill-black" />
-                      <span>Send & Credit</span>
+                      <span>Send & Credit {config.shortName}</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
