@@ -124,6 +124,10 @@ export interface GameState {
   wheelOfFortuneSpins?: number;
   wheelOfFortuneNextRefillTime?: number;
 
+  // Lay & Hatch (Big White Hen, 5 eggs every 7 hours, unlocked at Level 12)
+  layHatchEggsAvailable?: number;
+  layHatchNextRefillTime?: number;
+
   // Milestone Benefits tracking (5,000 taps & 10M points)
   tapMilestonesRewarded: number;
   pointMilestonesRewarded: number;

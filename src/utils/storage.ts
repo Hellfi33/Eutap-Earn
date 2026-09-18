@@ -36,6 +36,9 @@ export const INITIAL_STATE: GameState = {
   wheelOfFortuneSpins: 6,
   wheelOfFortuneNextRefillTime: 0,
 
+  layHatchEggsAvailable: 5,
+  layHatchNextRefillTime: 0,
+
   tapMilestonesRewarded: 0,
   pointMilestonesRewarded: 0,
 
@@ -114,6 +117,14 @@ export function loadGameState(): GameState {
       wheelOfFortuneNextRefillTime = 0;
     }
 
+    // Check Lay & Hatch 7-hour cycle (5 eggs every 7h = 25,200,000 ms)
+    let layHatchEggsAvailable = typeof parsed.layHatchEggsAvailable === 'number' ? parsed.layHatchEggsAvailable : 5;
+    let layHatchNextRefillTime = typeof parsed.layHatchNextRefillTime === 'number' ? parsed.layHatchNextRefillTime : 0;
+    if (layHatchNextRefillTime > 0 && now >= layHatchNextRefillTime) {
+      layHatchEggsAvailable = 5;
+      layHatchNextRefillTime = 0;
+    }
+
     // Clean up expired ABCD reward timestamps older than 24 hours (86,400,000 ms)
     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
     const rawTimestamps = Array.isArray(parsed.abcdRewardTimestamps) ? parsed.abcdRewardTimestamps : [];
@@ -141,6 +152,8 @@ export function loadGameState(): GameState {
       luckyChanceNextRefillTime,
       wheelOfFortuneSpins,
       wheelOfFortuneNextRefillTime,
+      layHatchEggsAvailable,
+      layHatchNextRefillTime,
       tapMilestonesRewarded: typeof parsed.tapMilestonesRewarded === 'number' ? parsed.tapMilestonesRewarded : Math.floor((parsed.totalTaps || 0) / 5000),
       pointMilestonesRewarded: typeof parsed.pointMilestonesRewarded === 'number' ? parsed.pointMilestonesRewarded : Math.floor((parsed.totalEarned || 0) / 10000000),
       energy: restoredEnergy,

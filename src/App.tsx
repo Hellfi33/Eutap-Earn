@@ -30,6 +30,7 @@ import { DailyComboModal } from './components/DailyComboModal';
 import { LuckyWheelModal } from './components/LuckyWheelModal';
 import { WheelOfFortuneModal, FortuneReward } from './components/WheelOfFortuneModal';
 import { TreePluckModal, TreePluckReward } from './components/TreePluckModal';
+import { LayHatchModal, HatchReward } from './components/LayHatchModal';
 import { BoostModal } from './components/BoostModal';
 import { ConnectWalletModal } from './components/ConnectWalletModal';
 import { TierModal } from './components/TierModal';
@@ -58,6 +59,7 @@ export default function App() {
   const [showLuckyWheel, setShowLuckyWheel] = useState(false);
   const [showWheelOfFortuneModal, setShowWheelOfFortuneModal] = useState(false);
   const [showTreePluckModal, setShowTreePluckModal] = useState(false);
+  const [showLayHatchModal, setShowLayHatchModal] = useState(false);
   const [showBoost, setShowBoost] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
@@ -82,19 +84,43 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [morseToastMessage]);
 
-  // Periodic check for Wheel of Fortune 24-hour lock expiration
+  // Periodic check for Wheel of Fortune (24h) and Lay & Hatch (7h) lock expirations
   useEffect(() => {
     const checkTimer = () => {
       setState((prev) => {
+        let updated = false;
+        let nextSpins = prev.wheelOfFortuneSpins;
+        let nextWheelRefill = prev.wheelOfFortuneNextRefillTime;
+        let nextEggs = prev.layHatchEggsAvailable;
+        let nextHatchRefill = prev.layHatchNextRefillTime;
+
         if (
           prev.wheelOfFortuneNextRefillTime &&
           prev.wheelOfFortuneNextRefillTime > 0 &&
           Date.now() >= prev.wheelOfFortuneNextRefillTime
         ) {
+          nextSpins = 6;
+          nextWheelRefill = 0;
+          updated = true;
+        }
+
+        if (
+          prev.layHatchNextRefillTime &&
+          prev.layHatchNextRefillTime > 0 &&
+          Date.now() >= prev.layHatchNextRefillTime
+        ) {
+          nextEggs = 5;
+          nextHatchRefill = 0;
+          updated = true;
+        }
+
+        if (updated) {
           return {
             ...prev,
-            wheelOfFortuneSpins: 6,
-            wheelOfFortuneNextRefillTime: 0,
+            wheelOfFortuneSpins: nextSpins,
+            wheelOfFortuneNextRefillTime: nextWheelRefill,
+            layHatchEggsAvailable: nextEggs,
+            layHatchNextRefillTime: nextHatchRefill,
           };
         }
         return prev;
@@ -784,6 +810,42 @@ export default function App() {
     }
   };
 
+  // Lay & Hatch Rewards Handler
+  const handleLayHatchRewards = (rewards: HatchReward[], updatedEggs: number, nextRefillTime: number) => {
+    let totalUsd = 0;
+    let totalDiamonds = 0;
+    let totalKeys = 0;
+    let totalCoins = 0;
+
+    rewards.forEach((r) => {
+      if (r.type === 'usd') totalUsd += r.value;
+      if (r.type === 'diamond') totalDiamonds += r.value;
+      if (r.type === 'keys') totalKeys += r.value;
+      if (r.type === 'coins') totalCoins += r.value;
+    });
+
+    setState((prev) => ({
+      ...prev,
+      reserveBalance: Math.round((prev.reserveBalance + totalUsd) * 100) / 100,
+      diamonds: (prev.diamonds || 0) + totalDiamonds,
+      keys: (prev.keys || 0) + totalKeys,
+      coins: prev.coins + totalCoins,
+      totalEarned: prev.totalEarned + totalCoins,
+      layHatchEggsAvailable: updatedEggs,
+      layHatchNextRefillTime: nextRefillTime,
+    }));
+
+    const parts: string[] = [];
+    if (totalUsd > 0) parts.push(`+$${totalUsd.toFixed(2)} Reserve`);
+    if (totalDiamonds > 0) parts.push(`+${totalDiamonds} 💎`);
+    if (totalKeys > 0) parts.push(`+${totalKeys} 🗝️`);
+    if (totalCoins > 0) parts.push(`+${totalCoins.toLocaleString()} Pts`);
+
+    if (parts.length > 0) {
+      setMorseToastMessage(`🥚 LAY & HATCH: ${parts.join(', ')} added!`);
+    }
+  };
+
   const handleDebitCoins = (amount: number) => {
     setState((prev) => ({
       ...prev,
@@ -1027,8 +1089,27 @@ export default function App() {
               tapLevel={state.tapLevel}
               onCompleteTask={handleCompleteTask}
               onOpenDailyReward={() => setShowDailyReward(true)}
-              onOpenWheelOfFortune={() => setShowWheelOfFortuneModal(true)}
-              onOpenTreePluck={() => setShowTreePluckModal(true)}
+              onOpenWheelOfFortune={() => {
+                if (state.tapLevel < 7) {
+                  setMorseToastMessage('🔒 Wheel of Fortune unlocks at Level 7!');
+                } else {
+                  setShowWheelOfFortuneModal(true);
+                }
+              }}
+              onOpenTreePluck={() => {
+                if (state.tapLevel < 9) {
+                  setMorseToastMessage('🔒 Tree Pluck unlocks at Level 9!');
+                } else {
+                  setShowTreePluckModal(true);
+                }
+              }}
+              onOpenLayHatch={() => {
+                if (state.tapLevel < 12) {
+                  setMorseToastMessage('🔒 Lay & Hatch unlocks at Level 12!');
+                } else {
+                  setShowLayHatchModal(true);
+                }
+              }}
               goldCoinImg={goldCoin}
             />
           </div>
@@ -1233,6 +1314,21 @@ export default function App() {
           reserveBalance={state.reserveBalance}
           diamonds={state.diamonds || 0}
           keys={state.keys || 0}
+        />
+      )}
+
+      {/* Lay & Hatch Modal (Level 12+ Big White Hen) */}
+      {showLayHatchModal && (
+        <LayHatchModal
+          isOpen={showLayHatchModal}
+          onClose={() => setShowLayHatchModal(false)}
+          eggsAvailable={state.layHatchEggsAvailable ?? 5}
+          nextRefillTime={state.layHatchNextRefillTime ?? 0}
+          onEggsHatched={handleLayHatchRewards}
+          reserveBalance={state.reserveBalance}
+          diamonds={state.diamonds || 0}
+          keys={state.keys || 0}
+          coins={state.coins}
         />
       )}
     </div>

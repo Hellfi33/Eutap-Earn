@@ -226,6 +226,58 @@ class SoundController {
     } catch {}
   }
 
+  playEggCrack() {
+    if (!this.enabled) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1400, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.04);
+
+      gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.05);
+    } catch {}
+  }
+
+  playCluck() {
+    if (!this.enabled) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const clucks = [480, 560, 420];
+      clucks.forEach((f, i) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(f, this.ctx.currentTime + i * 0.09);
+        osc.frequency.exponentialRampToValueAtTime(260, this.ctx.currentTime + i * 0.09 + 0.06);
+
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime + i * 0.09);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.09 + 0.06);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(this.ctx.currentTime + i * 0.09);
+        osc.stop(this.ctx.currentTime + i * 0.09 + 0.07);
+      });
+    } catch {}
+  }
+
   triggerHaptic() {
     if (typeof window !== 'undefined' && 'vibrate' in navigator) {
       try {
