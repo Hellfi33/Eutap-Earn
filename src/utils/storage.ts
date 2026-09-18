@@ -39,6 +39,8 @@ export const INITIAL_STATE: GameState = {
   layHatchEggsAvailable: 5,
   layHatchNextRefillTime: 0,
 
+  lastPphClaimTime: Date.now(),
+
   tapMilestonesRewarded: 0,
   pointMilestonesRewarded: 0,
 
@@ -154,6 +156,7 @@ export function loadGameState(): GameState {
       wheelOfFortuneNextRefillTime,
       layHatchEggsAvailable,
       layHatchNextRefillTime,
+      lastPphClaimTime: typeof parsed.lastPphClaimTime === 'number' ? parsed.lastPphClaimTime : now,
       tapMilestonesRewarded: typeof parsed.tapMilestonesRewarded === 'number' ? parsed.tapMilestonesRewarded : Math.floor((parsed.totalTaps || 0) / 5000),
       pointMilestonesRewarded: typeof parsed.pointMilestonesRewarded === 'number' ? parsed.pointMilestonesRewarded : Math.floor((parsed.totalEarned || 0) / 10000000),
       energy: restoredEnergy,

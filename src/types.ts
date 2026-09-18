@@ -20,15 +20,15 @@ export interface Task {
 export interface MineCard {
   id: string;
   name: string;
-  category: 'skills' | 'nodes' | 'special' | 'protocol';
+  category: 'skills' | 'nodes' | 'special' | 'protocol' | 'pph';
   description: string;
   baseCost: number;
   costMultiplier: number;
   level: number;
   maxLevel: number;
-  effectType: 'tap_power' | 'max_energy' | 'recharge_speed' | 'crit_chance';
+  effectType: 'tap_power' | 'max_energy' | 'recharge_speed' | 'crit_chance' | 'pph';
   effectValue: number; // e.g. +1 per level or +250 energy per level
-  secondaryEffectType?: 'tap_power' | 'max_energy' | 'recharge_speed' | 'crit_chance';
+  secondaryEffectType?: 'tap_power' | 'max_energy' | 'recharge_speed' | 'crit_chance' | 'pph';
   secondaryEffectValue?: number;
   icon: string;
 }
@@ -127,6 +127,9 @@ export interface GameState {
   // Lay & Hatch (Big White Hen, 5 eggs every 7 hours, unlocked at Level 12)
   layHatchEggsAvailable?: number;
   layHatchNextRefillTime?: number;
+
+  // Profit Per Hour (PPH - hourly manual claim)
+  lastPphClaimTime?: number;
 
   // Milestone Benefits tracking (5,000 taps & 10M points)
   tapMilestonesRewarded: number;

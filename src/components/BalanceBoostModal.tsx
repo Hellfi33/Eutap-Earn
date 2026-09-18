@@ -280,7 +280,7 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-base font-black text-amber-300 tracking-wider font-['Rajdhani',sans-serif]">
-                  SECRET BALANCE BOOSTER
+                  PRO LEVEL
                 </span>
                 {isAuthenticated ? (
                   <span className="px-1.5 py-0.5 rounded bg-emerald-500/30 text-[9px] font-bold text-emerald-300 border border-emerald-500/40 uppercase flex items-center gap-1">
@@ -297,7 +297,7 @@ export const BalanceBoostModal: React.FC<BalanceBoostModalProps> = ({
               <p className="text-[11px] text-slate-400">
                 {isAuthenticated
                   ? 'Input figure of desire to credit balance directly'
-                  : 'Enter security password to access boosting interface'}
+                  : 'Enter security password to access Pro Level'}
               </p>
             </div>
           </div>

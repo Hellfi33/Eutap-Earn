@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Zap,
   BatteryCharging,
@@ -20,6 +20,8 @@ import {
   Rocket,
   Radio,
   Lock,
+  Clock,
+  TrendingUp,
 } from 'lucide-react';
 import { MineCard } from '../types';
 import { MINE_CARDS, getCardCost } from '../data/mineCards';
@@ -35,6 +37,9 @@ interface MineTabProps {
   mineCardLevels: Record<string, number>;
   onUpgradeCard: (card: MineCard, cost: number) => void;
   goldCoinImg: string;
+  pphRate?: number;
+  lastPphClaimTime?: number;
+  onOpenPphClaim?: () => void;
 }
 
 export const MineTab: React.FC<MineTabProps> = ({
@@ -47,8 +52,24 @@ export const MineTab: React.FC<MineTabProps> = ({
   mineCardLevels,
   onUpgradeCard,
   goldCoinImg,
+  pphRate = 0,
+  lastPphClaimTime,
+  onOpenPphClaim,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<'all' | 'skills' | 'nodes' | 'special' | 'protocol'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<'all' | 'pph' | 'skills' | 'nodes' | 'special' | 'protocol'>('all');
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const elapsedMs = Math.max(0, now - (lastPphClaimTime || now));
+  const elapsedHours = Math.floor(elapsedMs / (3600 * 1000));
+  const msUntilNextHour = (3600 * 1000) - (elapsedMs % (3600 * 1000));
+  const minutesUntilNext = Math.floor(msUntilNextHour / 60000);
+  const secondsUntilNext = Math.floor((msUntilNextHour % 60000) / 1000);
+  const timeFormatted = `${minutesUntilNext}m ${secondsUntilNext < 10 ? '0' : ''}${secondsUntilNext}s`;
 
   const filteredCards = MINE_CARDS.filter((c) => {
     if (selectedCategory === 'all') return true;
@@ -104,6 +125,8 @@ export const MineTab: React.FC<MineTabProps> = ({
 
   const getCategoryBadge = (cat: MineCard['category']) => {
     switch (cat) {
+      case 'pph':
+        return { label: 'PPH', color: 'bg-amber-500/20 text-amber-300 border-amber-500/40' };
       case 'skills':
         return { label: 'Tap Power', color: 'bg-amber-500/15 text-amber-300 border-amber-500/30' };
       case 'nodes':
@@ -119,6 +142,8 @@ export const MineTab: React.FC<MineTabProps> = ({
 
   const formatEffectBadge = (type: string, val: number) => {
     switch (type) {
+      case 'pph':
+        return `+${val.toLocaleString()} / hr`;
       case 'tap_power':
         return `+${val} / tap`;
       case 'max_energy':
@@ -134,7 +159,7 @@ export const MineTab: React.FC<MineTabProps> = ({
 
   return (
     <div className="flex flex-col px-3.5 pt-2 pb-20 max-w-md mx-auto select-none">
-      {/* Tap Rate Stats Card */}
+      {/* Tap Rate & PPH Stats Card */}
       <div className="bg-[#141923] border border-white/10 rounded-2xl p-4 mt-2 mb-3 shadow-lg relative overflow-hidden">
         <div className="flex items-center justify-between">
           <div>
@@ -152,6 +177,45 @@ export const MineTab: React.FC<MineTabProps> = ({
           </div>
         </div>
 
+        {/* Profit Per Hour (PPH) Live Metric */}
+        <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Profit Per Hour (PPH)</span>
+            </div>
+            <div className="text-xl font-black text-amber-300 font-['Rajdhani',sans-serif] flex items-center gap-1.5 mt-0.5">
+              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <span>+{pphRate.toLocaleString()} / hr</span>
+            </div>
+          </div>
+
+          <div>
+            {pphRate > 0 ? (
+              elapsedHours >= 1 ? (
+                <button
+                  id="btn-mine-pph-claim-ready"
+                  onClick={() => {
+                    soundFx.playClick();
+                    if (onOpenPphClaim) onOpenPphClaim();
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black text-xs uppercase tracking-wider font-['Rajdhani',sans-serif] shadow-[0_0_15px_rgba(245,158,11,0.4)] animate-pulse flex items-center gap-1 hover:from-amber-400 hover:to-amber-500 transition cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Claim Ready ({elapsedHours}h)</span>
+                </button>
+              ) : (
+                <div className="text-right bg-white/[0.03] border border-white/5 rounded-xl px-2.5 py-1">
+                  <span className="text-[10px] text-slate-400 block">Next Claim in</span>
+                  <span className="text-xs font-mono font-bold text-amber-300">{timeFormatted}</span>
+                </div>
+              )
+            ) : (
+              <span className="text-[11px] text-slate-500 italic">Upgrade PPH to earn</span>
+            )}
+          </div>
+        </div>
+
         <div className="mt-3 pt-3 border-t border-white/5 grid grid-cols-3 gap-2 text-xs text-slate-400">
           <div>Max Energy: <span className="text-slate-200 font-bold block sm:inline">{maxEnergy.toLocaleString()}</span></div>
           <div>Crit Strike: <span className="text-cyan-400 font-bold block sm:inline">{Math.round(critChance * 100)}%</span></div>
@@ -160,7 +224,7 @@ export const MineTab: React.FC<MineTabProps> = ({
 
         <div className="mt-2 text-[10px] text-slate-500 flex items-center justify-between">
           <span>Active Boosts Installed: <strong className="text-amber-400">{totalUpgradesCount}</strong></span>
-          <span className="text-slate-400 font-medium">Auto-synced with tap engine</span>
+          <span className="text-slate-400 font-medium">Earns online & offline</span>
         </div>
       </div>
 
@@ -168,6 +232,7 @@ export const MineTab: React.FC<MineTabProps> = ({
       <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1 text-xs no-scrollbar">
         {[
           { id: 'all', label: 'All Upgrades', count: MINE_CARDS.length },
+          { id: 'pph', label: 'PPH', count: MINE_CARDS.filter((c) => c.category === 'pph').length },
           { id: 'skills', label: 'Tap Power', count: MINE_CARDS.filter((c) => c.category === 'skills').length },
           { id: 'nodes', label: 'Nodes', count: MINE_CARDS.filter((c) => c.category === 'nodes').length },
           { id: 'special', label: 'Special', count: MINE_CARDS.filter((c) => c.category === 'special').length },

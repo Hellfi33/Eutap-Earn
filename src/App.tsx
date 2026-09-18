@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { GameState, FloatingTapNumber, MineCard } from './types';
 import { loadGameState, saveGameState, resetGameState } from './utils/storage';
 import { soundFx } from './utils/audio';
 import { getTierByCoins } from './data/tiers';
 import { getDailyCipherWord } from './data/ciphers';
+import { calculateTotalPph } from './data/mineCards';
 
 // Assets
 import mascotAvatar from './assets/images/eutap_mascot_avatar_1788588061680.jpg';
@@ -31,6 +32,7 @@ import { LuckyWheelModal } from './components/LuckyWheelModal';
 import { WheelOfFortuneModal, FortuneReward } from './components/WheelOfFortuneModal';
 import { TreePluckModal, TreePluckReward } from './components/TreePluckModal';
 import { LayHatchModal, HatchReward } from './components/LayHatchModal';
+import { PphClaimModal } from './components/PphClaimModal';
 import { BoostModal } from './components/BoostModal';
 import { ConnectWalletModal } from './components/ConnectWalletModal';
 import { TierModal } from './components/TierModal';
@@ -60,6 +62,7 @@ export default function App() {
   const [showWheelOfFortuneModal, setShowWheelOfFortuneModal] = useState(false);
   const [showTreePluckModal, setShowTreePluckModal] = useState(false);
   const [showLayHatchModal, setShowLayHatchModal] = useState(false);
+  const [showPphClaimModal, setShowPphClaimModal] = useState(false);
   const [showBoost, setShowBoost] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
@@ -130,6 +133,49 @@ export default function App() {
     const interval = setInterval(checkTimer, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Profit Per Hour (PPH) calculation & hourly claim trigger (online & offline manual claim)
+  const pphRate = useMemo(() => calculateTotalPph(state.mineCardLevels), [state.mineCardLevels]);
+
+  useEffect(() => {
+    if (pphRate <= 0) return;
+
+    const checkPphReady = () => {
+      const now = Date.now();
+      const elapsedMs = Math.max(0, now - (state.lastPphClaimTime || now));
+      const hours = Math.floor(elapsedMs / (3600 * 1000));
+      if (hours >= 1 && !showPphClaimModal) {
+        setShowPphClaimModal(true);
+      }
+    };
+
+    checkPphReady();
+    const pphInterval = setInterval(checkPphReady, 4000);
+    return () => clearInterval(pphInterval);
+  }, [pphRate, state.lastPphClaimTime, showPphClaimModal]);
+
+  const handleClaimPphReward = () => {
+    const now = Date.now();
+    const elapsedMs = Math.max(0, now - (state.lastPphClaimTime || now));
+    const hours = Math.max(1, Math.floor(elapsedMs / (3600 * 1000)));
+    const claimAmount = hours * pphRate;
+
+    if (claimAmount > 0) {
+      const leftoverMs = elapsedMs % (3600 * 1000);
+      const newClaimTime = now - leftoverMs;
+
+      setState((prev) => ({
+        ...prev,
+        coins: prev.coins + claimAmount,
+        totalEarned: prev.totalEarned + claimAmount,
+        lastPphClaimTime: newClaimTime,
+      }));
+
+      setMorseToastMessage(`💰 Claimed +${claimAmount.toLocaleString()} PPH Points (${hours}h)!`);
+    }
+
+    setShowPphClaimModal(false);
+  };
 
   // Sync soundFx config
   useEffect(() => {
@@ -408,6 +454,11 @@ export default function App() {
         applyBonus(card.secondaryEffectType, card.secondaryEffectValue);
       }
 
+      let updatedLastPphClaimTime = prev.lastPphClaimTime;
+      if (card.effectType === 'pph' && !updatedLastPphClaimTime) {
+        updatedLastPphClaimTime = Date.now();
+      }
+
       return {
         ...prev,
         coins: prev.coins - cost,
@@ -416,6 +467,7 @@ export default function App() {
         energy: updatedEnergy,
         energyRechargeRate: updatedRecharge,
         critChance: updatedCrit,
+        lastPphClaimTime: updatedLastPphClaimTime,
         mineCardLevels: {
           ...prev.mineCardLevels,
           [card.id]: currentCardLevel,
@@ -1065,6 +1117,9 @@ export default function App() {
               mineCardLevels={state.mineCardLevels}
               onUpgradeCard={handleUpgradeCard}
               goldCoinImg={goldCoin}
+              pphRate={pphRate}
+              lastPphClaimTime={state.lastPphClaimTime}
+              onOpenPphClaim={() => setShowPphClaimModal(true)}
             />
           </div>
         )}
@@ -1329,6 +1384,27 @@ export default function App() {
           diamonds={state.diamonds || 0}
           keys={state.keys || 0}
           coins={state.coins}
+        />
+      )}
+
+      {/* Profit Per Hour (PPH) Manual Claim Popup (Hourly Trigger) */}
+      {showPphClaimModal && (
+        <PphClaimModal
+          isOpen={showPphClaimModal}
+          onClose={() => setShowPphClaimModal(false)}
+          onClaim={handleClaimPphReward}
+          pphRate={pphRate}
+          elapsedHours={Math.max(
+            1,
+            Math.floor(Math.max(0, Date.now() - (state.lastPphClaimTime || Date.now())) / (3600 * 1000))
+          )}
+          claimablePoints={
+            Math.max(
+              1,
+              Math.floor(Math.max(0, Date.now() - (state.lastPphClaimTime || Date.now())) / (3600 * 1000))
+            ) * pphRate
+          }
+          goldCoinImg={goldCoin}
         />
       )}
     </div>

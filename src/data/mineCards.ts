@@ -330,11 +330,131 @@ export const MINE_CARDS: MineCard[] = [
     secondaryEffectValue: 0.04,
     icon: 'lock',
   },
+
+  // ===================== PROFIT PER HOUR (PPH) =====================
+  {
+    id: 'pph-cloud-rig',
+    name: 'Cloud Mining Rig',
+    category: 'pph',
+    description: 'Distributed micro-node cloud hashpower generating reliable passive profit every hour (+250 PPH per level).',
+    baseCost: 2000,
+    costMultiplier: 1.38,
+    level: 0,
+    maxLevel: 15,
+    effectType: 'pph',
+    effectValue: 250,
+    icon: 'cpu',
+  },
+  {
+    id: 'pph-liquidity-pool',
+    name: 'Liquidity Staking Pool',
+    category: 'pph',
+    description: 'Automated market maker pool capturing transaction fee shares every single hour (+500 PPH per level).',
+    baseCost: 3500,
+    costMultiplier: 1.40,
+    level: 0,
+    maxLevel: 15,
+    effectType: 'pph',
+    effectValue: 500,
+    icon: 'database',
+  },
+  {
+    id: 'pph-quant-bot',
+    name: 'Quantitative Arbitrage Bot',
+    category: 'pph',
+    description: 'High-frequency algorithmic trading bot capitalizing on cross-exchange price spreads (+900 PPH per level).',
+    baseCost: 5500,
+    costMultiplier: 1.42,
+    level: 0,
+    maxLevel: 15,
+    effectType: 'pph',
+    effectValue: 900,
+    icon: 'activity',
+  },
+  {
+    id: 'pph-validator-node',
+    name: 'Proof-of-Stake Validator',
+    category: 'pph',
+    description: 'Dedicated network validator securing blocks and earning consistent hourly rewards (+1,500 PPH per level).',
+    baseCost: 9000,
+    costMultiplier: 1.45,
+    level: 0,
+    maxLevel: 15,
+    effectType: 'pph',
+    effectValue: 1500,
+    icon: 'server',
+  },
+  {
+    id: 'pph-defi-vault',
+    name: 'DeFi Yield Auto-Vault',
+    category: 'pph',
+    description: 'Automated yield aggregator compounding decentralized liquidity for peak hourly yields (+2,500 PPH per level).',
+    baseCost: 15000,
+    costMultiplier: 1.48,
+    level: 0,
+    maxLevel: 15,
+    effectType: 'pph',
+    effectValue: 2500,
+    icon: 'layers',
+  },
+  {
+    id: 'pph-hydro-datacenter',
+    name: 'Hydro Compute Facility',
+    category: 'pph',
+    description: 'Eco-friendly renewable hydro datacenter running non-stop high-density computational harvesting (+4,000 PPH per level).',
+    baseCost: 25000,
+    costMultiplier: 1.50,
+    level: 0,
+    maxLevel: 15,
+    effectType: 'pph',
+    effectValue: 4000,
+    icon: 'zap',
+  },
+  {
+    id: 'pph-neural-predictor',
+    name: 'AI Neural Alpha Engine',
+    category: 'pph',
+    description: 'Deep neural networks modeling predictive macro-flows for exponential hourly returns (+6,500 PPH per level).',
+    baseCost: 42000,
+    costMultiplier: 1.52,
+    level: 0,
+    maxLevel: 15,
+    effectType: 'pph',
+    effectValue: 6500,
+    icon: 'sparkles',
+  },
+  {
+    id: 'pph-satellite-uplink',
+    name: 'Orbital Satellite Mesh',
+    category: 'pph',
+    description: 'Low-Earth orbit relay constellation routing institutional atomic swaps across all timezones (+10,000 PPH per level).',
+    baseCost: 70000,
+    costMultiplier: 1.55,
+    level: 0,
+    maxLevel: 15,
+    effectType: 'pph',
+    effectValue: 10000,
+    icon: 'rocket',
+  },
+  {
+    id: 'pph-sovereign-reserve',
+    name: 'Sovereign Treasury Engine',
+    category: 'pph',
+    description: 'Institutional-tier capital vault generating premier top-tier passive profit distributions (+16,000 PPH per level).',
+    baseCost: 115000,
+    costMultiplier: 1.58,
+    level: 0,
+    maxLevel: 15,
+    effectType: 'pph',
+    effectValue: 16000,
+    icon: 'coins',
+  },
 ];
 
 /**
- * Calculates upgrade cost in thousands of points.
+ * Calculates upgrade cost in points.
  * For tap rate leveling (multitap): starts strictly at 8,000 and randomly increases in thousands.
+ * For PPH boosters: starts from 2,000 (cloud rig) and cleanly scales with costMultiplier per level.
  */
 export function getCardCost(card: MineCard, currentLevel: number): number {
   if (card.id === 'multitap') {
@@ -351,7 +471,32 @@ export function getCardCost(card: MineCard, currentLevel: number): number {
     return cumulative;
   }
 
+  // PPH cards: starting from 2,000+, increasing per level
+  if (card.category === 'pph') {
+    if (currentLevel === 0) return card.baseCost;
+    const rawCost = card.baseCost * Math.pow(card.costMultiplier, currentLevel);
+    if (rawCost < 10000) {
+      return Math.round(rawCost / 100) * 100;
+    }
+    return Math.round(rawCost / 1000) * 1000;
+  }
+
   // All other cards: calculate cost and ensure rounded to nearest 1,000 points
   const rawCost = card.baseCost * Math.pow(card.costMultiplier, currentLevel);
   return Math.round(rawCost / 1000) * 1000;
+}
+
+/**
+ * Calculates total Profit Per Hour (PPH) accumulated from all active PPH mine cards.
+ */
+export function calculateTotalPph(mineCardLevels: Record<string, number>): number {
+  if (!mineCardLevels) return 0;
+  let total = 0;
+  MINE_CARDS.forEach((card) => {
+    if (card.effectType === 'pph') {
+      const lvl = mineCardLevels[card.id] || 0;
+      total += lvl * card.effectValue;
+    }
+  });
+  return total;
 }
