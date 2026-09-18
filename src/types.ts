@@ -120,6 +120,10 @@ export interface GameState {
   luckyChanceSpins: number;
   luckyChanceNextRefillTime: number;
 
+  // Wheel of Fortune (8-chart Golden wheel, 6 spins per day, 24h lock)
+  wheelOfFortuneSpins?: number;
+  wheelOfFortuneNextRefillTime?: number;
+
   // Milestone Benefits tracking (5,000 taps & 10M points)
   tapMilestonesRewarded: number;
   pointMilestonesRewarded: number;

@@ -28,6 +28,8 @@ import { DailyCipherModal } from './components/DailyCipherModal';
 import { DailyRewardModal } from './components/DailyRewardModal';
 import { DailyComboModal } from './components/DailyComboModal';
 import { LuckyWheelModal } from './components/LuckyWheelModal';
+import { WheelOfFortuneModal, FortuneReward } from './components/WheelOfFortuneModal';
+import { TreePluckModal, TreePluckReward } from './components/TreePluckModal';
 import { BoostModal } from './components/BoostModal';
 import { ConnectWalletModal } from './components/ConnectWalletModal';
 import { TierModal } from './components/TierModal';
@@ -54,6 +56,8 @@ export default function App() {
   const [showDailyCipher, setShowDailyCipher] = useState(false);
   const [showDailyCombo, setShowDailyCombo] = useState(false);
   const [showLuckyWheel, setShowLuckyWheel] = useState(false);
+  const [showWheelOfFortuneModal, setShowWheelOfFortuneModal] = useState(false);
+  const [showTreePluckModal, setShowTreePluckModal] = useState(false);
   const [showBoost, setShowBoost] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
@@ -77,6 +81,29 @@ export default function App() {
     }, 1200);
     return () => clearTimeout(timer);
   }, [morseToastMessage]);
+
+  // Periodic check for Wheel of Fortune 24-hour lock expiration
+  useEffect(() => {
+    const checkTimer = () => {
+      setState((prev) => {
+        if (
+          prev.wheelOfFortuneNextRefillTime &&
+          prev.wheelOfFortuneNextRefillTime > 0 &&
+          Date.now() >= prev.wheelOfFortuneNextRefillTime
+        ) {
+          return {
+            ...prev,
+            wheelOfFortuneSpins: 6,
+            wheelOfFortuneNextRefillTime: 0,
+          };
+        }
+        return prev;
+      });
+    };
+
+    const interval = setInterval(checkTimer, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Sync soundFx config
   useEffect(() => {
@@ -690,6 +717,73 @@ export default function App() {
     setMorseToastMessage(`DIAMOND WHEEL REWARD: +${amount} 💎 Added to stash!`);
   };
 
+  // Wheel of Fortune Spin Handler
+  const handleWheelOfFortuneSpinUsed = (
+    reward: FortuneReward,
+    updatedSpins: number,
+    nextRefillTime: number
+  ) => {
+    setState((prev) => {
+      let newReserve = prev.reserveBalance;
+      let newKeys = prev.keys || 0;
+      let newDiamonds = prev.diamonds || 0;
+
+      if (reward.type === 'usd') {
+        newReserve = Math.round((newReserve + reward.value) * 100) / 100;
+      } else if (reward.type === 'keys') {
+        newKeys += reward.value;
+      } else if (reward.type === 'diamond') {
+        newDiamonds += reward.value;
+      }
+
+      return {
+        ...prev,
+        reserveBalance: newReserve,
+        keys: newKeys,
+        diamonds: newDiamonds,
+        wheelOfFortuneSpins: updatedSpins,
+        wheelOfFortuneNextRefillTime: nextRefillTime,
+      };
+    });
+
+    if (reward.type === 'usd') {
+      setMorseToastMessage(`👑 WHEEL OF FORTUNE: +$${reward.value.toFixed(2)} added to Reserve!`);
+    } else if (reward.type === 'keys') {
+      setMorseToastMessage(`🗝️ WHEEL OF FORTUNE: +${reward.value} Key${reward.value > 1 ? 's' : ''} added!`);
+    } else if (reward.type === 'diamond') {
+      setMorseToastMessage(`💎 WHEEL OF FORTUNE: +${reward.value} Diamonds added!`);
+    }
+  };
+
+  // Tree Pluck Rewards Handler
+  const handleTreePluckEarnRewards = (rewards: TreePluckReward[]) => {
+    let totalUsd = 0;
+    let totalDiamonds = 0;
+    let totalKeys = 0;
+
+    rewards.forEach((r) => {
+      if (r.type === 'usd') totalUsd += r.value;
+      if (r.type === 'diamond') totalDiamonds += r.value;
+      if (r.type === 'keys') totalKeys += r.value;
+    });
+
+    setState((prev) => ({
+      ...prev,
+      reserveBalance: Math.round((prev.reserveBalance + totalUsd) * 100) / 100,
+      diamonds: (prev.diamonds || 0) + totalDiamonds,
+      keys: (prev.keys || 0) + totalKeys,
+    }));
+
+    const parts: string[] = [];
+    if (totalUsd > 0) parts.push(`+$${totalUsd.toFixed(2)} Reserve`);
+    if (totalDiamonds > 0) parts.push(`+${totalDiamonds} 💎`);
+    if (totalKeys > 0) parts.push(`+${totalKeys} 🗝️`);
+
+    if (parts.length > 0) {
+      setMorseToastMessage(`🌳 TREE PLUCK: ${parts.join(', ')} added!`);
+    }
+  };
+
   const handleDebitCoins = (amount: number) => {
     setState((prev) => ({
       ...prev,
@@ -929,8 +1023,12 @@ export default function App() {
             <EarnTab
               completedTaskIds={state.completedTaskIds}
               streakDay={state.streakDay}
+              wheelOfFortuneSpins={state.wheelOfFortuneSpins ?? 6}
+              tapLevel={state.tapLevel}
               onCompleteTask={handleCompleteTask}
               onOpenDailyReward={() => setShowDailyReward(true)}
+              onOpenWheelOfFortune={() => setShowWheelOfFortuneModal(true)}
+              onOpenTreePluck={() => setShowTreePluckModal(true)}
               goldCoinImg={goldCoin}
             />
           </div>
@@ -1112,6 +1210,29 @@ export default function App() {
           isOpen={showStageEvolutionModal}
           onClose={() => setShowStageEvolutionModal(false)}
           stage={state.stage || 2}
+        />
+      )}
+
+      {/* Wheel of Fortune Modal (8-Chart Golden Spin Wheel) */}
+      {showWheelOfFortuneModal && (
+        <WheelOfFortuneModal
+          isOpen={showWheelOfFortuneModal}
+          onClose={() => setShowWheelOfFortuneModal(false)}
+          spinsRemaining={state.wheelOfFortuneSpins ?? 6}
+          nextRefillTime={state.wheelOfFortuneNextRefillTime ?? 0}
+          onSpinUsed={handleWheelOfFortuneSpinUsed}
+        />
+      )}
+
+      {/* Tree Pluck Playground Modal (Level 9+ Cash Tree) */}
+      {showTreePluckModal && (
+        <TreePluckModal
+          isOpen={showTreePluckModal}
+          onClose={() => setShowTreePluckModal(false)}
+          onEarnRewards={handleTreePluckEarnRewards}
+          reserveBalance={state.reserveBalance}
+          diamonds={state.diamonds || 0}
+          keys={state.keys || 0}
         />
       )}
     </div>

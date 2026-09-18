@@ -33,6 +33,9 @@ export const INITIAL_STATE: GameState = {
   luckyChanceSpins: 6,
   luckyChanceNextRefillTime: 0,
 
+  wheelOfFortuneSpins: 6,
+  wheelOfFortuneNextRefillTime: 0,
+
   tapMilestonesRewarded: 0,
   pointMilestonesRewarded: 0,
 
@@ -103,6 +106,14 @@ export function loadGameState(): GameState {
       luckyChanceNextRefillTime = 0;
     }
 
+    // Check Wheel of Fortune 24-hour cycle (6 spins every 24h)
+    let wheelOfFortuneSpins = typeof parsed.wheelOfFortuneSpins === 'number' ? parsed.wheelOfFortuneSpins : 6;
+    let wheelOfFortuneNextRefillTime = typeof parsed.wheelOfFortuneNextRefillTime === 'number' ? parsed.wheelOfFortuneNextRefillTime : 0;
+    if (wheelOfFortuneNextRefillTime > 0 && now >= wheelOfFortuneNextRefillTime) {
+      wheelOfFortuneSpins = 6;
+      wheelOfFortuneNextRefillTime = 0;
+    }
+
     // Clean up expired ABCD reward timestamps older than 24 hours (86,400,000 ms)
     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
     const rawTimestamps = Array.isArray(parsed.abcdRewardTimestamps) ? parsed.abcdRewardTimestamps : [];
@@ -128,6 +139,8 @@ export function loadGameState(): GameState {
       keys: typeof parsed.keys === 'number' ? parsed.keys : 0,
       luckyChanceSpins,
       luckyChanceNextRefillTime,
+      wheelOfFortuneSpins,
+      wheelOfFortuneNextRefillTime,
       tapMilestonesRewarded: typeof parsed.tapMilestonesRewarded === 'number' ? parsed.tapMilestonesRewarded : Math.floor((parsed.totalTaps || 0) / 5000),
       pointMilestonesRewarded: typeof parsed.pointMilestonesRewarded === 'number' ? parsed.pointMilestonesRewarded : Math.floor((parsed.totalEarned || 0) / 10000000),
       energy: restoredEnergy,

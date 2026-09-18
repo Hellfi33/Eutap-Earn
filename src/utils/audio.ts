@@ -150,6 +150,82 @@ class SoundController {
     } catch {}
   }
 
+  playWhoosh() {
+    if (!this.enabled) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.12);
+
+      gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.12);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.13);
+    } catch {}
+  }
+
+  playTreeShake() {
+    if (!this.enabled) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const freqs = [120, 180, 140, 220, 160, 200];
+      freqs.forEach((f, idx) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, this.ctx.currentTime + idx * 0.06);
+        osc.frequency.exponentialRampToValueAtTime(60, this.ctx.currentTime + idx * 0.06 + 0.08);
+
+        gain.gain.setValueAtTime(0.14, this.ctx.currentTime + idx * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.06 + 0.08);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(this.ctx.currentTime + idx * 0.06);
+        osc.stop(this.ctx.currentTime + idx * 0.06 + 0.09);
+      });
+    } catch {}
+  }
+
+  playPluck() {
+    if (!this.enabled) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, this.ctx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.08); // A5
+
+      gain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.11);
+    } catch {}
+  }
+
   triggerHaptic() {
     if (typeof window !== 'undefined' && 'vibrate' in navigator) {
       try {
