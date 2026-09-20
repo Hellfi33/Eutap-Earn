@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, ChevronRight, ChevronLeft, Send, Twitter, Youtube, MessageSquare, Repeat, Wallet, Check, ExternalLink, Crown, Sparkles, TreePine, Lock, Egg } from 'lucide-react';
+import { Calendar, ChevronRight, ChevronLeft, Send, Twitter, Youtube, MessageSquare, Repeat, Wallet, Check, ExternalLink, Crown, Sparkles, TreePine, Lock, Egg, ArrowUpDown } from 'lucide-react';
 import { Task } from '../types';
 import { INITIAL_TASKS } from '../data/tasks';
 import { soundFx } from '../utils/audio';
@@ -15,6 +15,7 @@ interface EarnTabProps {
   onOpenTreePluck?: () => void;
   onOpenLayHatch?: () => void;
   onOpenDice?: () => void;
+  onOpenHnL?: () => void;
   goldCoinImg: string;
 }
 
@@ -29,6 +30,7 @@ export const EarnTab: React.FC<EarnTabProps> = ({
   onOpenTreePluck,
   onOpenLayHatch,
   onOpenDice,
+  onOpenHnL,
   goldCoinImg,
 }) => {
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
@@ -102,7 +104,7 @@ export const EarnTab: React.FC<EarnTabProps> = ({
               DAILY REWARDS & PLAYGROUNDS
             </span>
             <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-white/10 text-slate-300 font-mono">
-              {carouselIndex + 1}/5
+              {carouselIndex + 1}/6
             </span>
           </div>
 
@@ -112,7 +114,7 @@ export const EarnTab: React.FC<EarnTabProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 soundFx.playClick();
-                setCarouselIndex((prev) => (prev === 0 ? 4 : prev - 1));
+                setCarouselIndex((prev) => (prev === 0 ? 5 : prev - 1));
               }}
               className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
               aria-label="Previous reward card"
@@ -124,7 +126,7 @@ export const EarnTab: React.FC<EarnTabProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 soundFx.playClick();
-                setCarouselIndex((prev) => (prev === 4 ? 0 : prev + 1));
+                setCarouselIndex((prev) => (prev === 5 ? 0 : prev + 1));
               }}
               className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
               aria-label="Next reward card"
@@ -485,6 +487,89 @@ export const EarnTab: React.FC<EarnTabProps> = ({
               )}
             </button>
           )}
+
+          {/* Slide 6: H&L (Higher & Lower) - Unlocks at Level 17 */}
+          {carouselIndex === 5 && (
+            <button
+              id="btn-open-hnl-card"
+              onClick={() => {
+                if (tapLevel < 17) {
+                  soundFx.playClick();
+                  setLockedNotice(`Locked! H&L unlocks at Level 17 (Current: Lv.${tapLevel})`);
+                  setTimeout(() => setLockedNotice(null), 3000);
+                } else {
+                  soundFx.playClick();
+                  onOpenHnL?.();
+                }
+              }}
+              className={`w-full p-3.5 rounded-2xl border text-left transition-all flex items-center justify-between group ${
+                tapLevel < 17
+                  ? 'bg-gradient-to-r from-slate-900/60 via-slate-900/40 to-cyan-950/20 border-white/5 opacity-75'
+                  : 'bg-gradient-to-r from-cyan-950/70 via-blue-950/50 to-slate-900/90 border-cyan-500/30 hover:border-cyan-400/60 shadow-[0_4px_20px_rgba(6,182,212,0.15)] active:scale-[0.99]'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-11 h-11 rounded-xl flex items-center justify-center border shadow-inner transition-transform group-hover:scale-105 shrink-0 ${
+                    tapLevel < 17
+                      ? 'bg-slate-800/80 border-slate-700/50 text-slate-500'
+                      : 'bg-gradient-to-br from-cyan-500/30 to-blue-600/30 border-cyan-400/50 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
+                  }`}
+                >
+                  {tapLevel < 17 ? (
+                    <Lock className="w-5 h-5 text-slate-500" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center leading-none">
+                      <ArrowUpDown className="w-4 h-4 text-cyan-300 mb-0.5" />
+                      <span className="text-[9px] font-black tracking-tighter text-cyan-200">0</span>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h4
+                      className={`text-sm font-black tracking-wide font-['Rajdhani',sans-serif] ${
+                        tapLevel < 17 ? 'text-slate-300' : 'text-cyan-200'
+                      }`}
+                    >
+                      H&L
+                    </h4>
+                    {tapLevel < 17 ? (
+                      <span className="px-1.5 py-0.5 rounded bg-rose-500/20 text-[9px] font-bold text-rose-300 border border-rose-500/30">
+                        LEVEL UP TO 17
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.5 rounded bg-cyan-500/25 text-[9px] font-black text-cyan-300 border border-cyan-400/40 animate-pulse">
+                        UNLOCKED
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 mt-0.5 text-xs">
+                    {tapLevel < 17 ? (
+                      <span className="text-slate-400 text-[11px]">
+                        Locked (level up to 17) • Progress: Lv.{tapLevel}/17
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-1 text-cyan-300/90 text-[11px] font-medium">
+                        <Sparkles className="w-3 h-3 text-cyan-400 shrink-0" />
+                        <span>Predict Higher or Lower • 5s Spin • Win $1–$5 Cash!</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {tapLevel < 17 ? (
+                <div className="p-1 rounded-lg text-slate-600 group-hover:text-rose-400 transition shrink-0">
+                  <Lock className="w-4 h-4" />
+                </div>
+              ) : (
+                <ChevronRight className="w-5 h-5 text-cyan-400 group-hover:text-cyan-200 group-hover:translate-x-1 transition shrink-0" />
+              )}
+            </button>
+          )}
         </div>
 
         {/* Temporary Locked Feedback Toast */}
@@ -555,6 +640,18 @@ export const EarnTab: React.FC<EarnTabProps> = ({
                 : 'w-2 bg-white/20 hover:bg-white/40'
             }`}
             aria-label="Slide 5: Dice"
+          />
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setCarouselIndex(5);
+            }}
+            className={`h-1.5 rounded-full transition-all ${
+              carouselIndex === 5
+                ? 'w-6 bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.9)]'
+                : 'w-2 bg-white/20 hover:bg-white/40'
+            }`}
+            aria-label="Slide 6: H&L"
           />
         </div>
       </div>

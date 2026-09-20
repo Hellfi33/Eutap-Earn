@@ -33,6 +33,7 @@ import { WheelOfFortuneModal, FortuneReward } from './components/WheelOfFortuneM
 import { TreePluckModal, TreePluckReward } from './components/TreePluckModal';
 import { LayHatchModal, HatchReward } from './components/LayHatchModal';
 import { DiceGameModal, DiceOutcome } from './components/DiceGameModal';
+import { HnLGameModal } from './components/HnLGameModal';
 import { PphClaimModal } from './components/PphClaimModal';
 import { BoostModal } from './components/BoostModal';
 import { ConnectWalletModal } from './components/ConnectWalletModal';
@@ -64,6 +65,7 @@ export default function App() {
   const [showTreePluckModal, setShowTreePluckModal] = useState(false);
   const [showLayHatchModal, setShowLayHatchModal] = useState(false);
   const [showDiceModal, setShowDiceModal] = useState(false);
+  const [showHnLModal, setShowHnLModal] = useState(false);
   const [showPphClaimModal, setShowPphClaimModal] = useState(false);
   const [showBoost, setShowBoost] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
@@ -934,6 +936,30 @@ export default function App() {
     }
   };
 
+  // H&L Game Handlers (Level 17+ Higher & Lower)
+  const handleHnLDebitStake = (amount: number) => {
+    setState((prev) => ({
+      ...prev,
+      reserveBalance: Math.max(0, Math.round((prev.reserveBalance - amount) * 100) / 100),
+    }));
+  };
+
+  const handleHnLCreditWin = (payout: number) => {
+    setState((prev) => ({
+      ...prev,
+      reserveBalance: Math.round((prev.reserveBalance + payout) * 100) / 100,
+    }));
+    setMorseToastMessage(`🎉 H&L WIN: +$${payout.toFixed(2)} added to Reserve!`);
+  };
+
+  const handleHnLAddDemoReserve = () => {
+    setState((prev) => ({
+      ...prev,
+      reserveBalance: Math.round((prev.reserveBalance + 5.0) * 100) / 100,
+    }));
+    setMorseToastMessage('🎁 +$5.00 TEST RESERVE CREDITED!');
+  };
+
   const handleDebitCoins = (amount: number) => {
     setState((prev) => ({
       ...prev,
@@ -1208,6 +1234,13 @@ export default function App() {
                   setShowDiceModal(true);
                 }
               }}
+              onOpenHnL={() => {
+                if (state.tapLevel < 17) {
+                  setMorseToastMessage('🔒 H&L unlocks at Level 17!');
+                } else {
+                  setShowHnLModal(true);
+                }
+              }}
               goldCoinImg={goldCoin}
             />
           </div>
@@ -1440,6 +1473,20 @@ export default function App() {
           reserveBalance={state.reserveBalance}
           keys={state.keys || 0}
           diamonds={state.diamonds || 0}
+          goldCoinImg={goldCoin}
+        />
+      )}
+
+      {/* H&L Game Modal (Level 17+ Higher & Lower Arena) */}
+      {showHnLModal && (
+        <HnLGameModal
+          isOpen={showHnLModal}
+          onClose={() => setShowHnLModal(false)}
+          reserveBalance={state.reserveBalance}
+          onDebitStake={handleHnLDebitStake}
+          onCreditWin={handleHnLCreditWin}
+          onAddDemoReserve={handleHnLAddDemoReserve}
+          coins={state.coins}
           goldCoinImg={goldCoin}
         />
       )}
