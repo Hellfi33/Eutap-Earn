@@ -32,6 +32,7 @@ import { LuckyWheelModal } from './components/LuckyWheelModal';
 import { WheelOfFortuneModal, FortuneReward } from './components/WheelOfFortuneModal';
 import { TreePluckModal, TreePluckReward } from './components/TreePluckModal';
 import { LayHatchModal, HatchReward } from './components/LayHatchModal';
+import { DiceGameModal, DiceOutcome } from './components/DiceGameModal';
 import { PphClaimModal } from './components/PphClaimModal';
 import { BoostModal } from './components/BoostModal';
 import { ConnectWalletModal } from './components/ConnectWalletModal';
@@ -62,6 +63,7 @@ export default function App() {
   const [showWheelOfFortuneModal, setShowWheelOfFortuneModal] = useState(false);
   const [showTreePluckModal, setShowTreePluckModal] = useState(false);
   const [showLayHatchModal, setShowLayHatchModal] = useState(false);
+  const [showDiceModal, setShowDiceModal] = useState(false);
   const [showPphClaimModal, setShowPphClaimModal] = useState(false);
   const [showBoost, setShowBoost] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
@@ -898,6 +900,40 @@ export default function App() {
     }
   };
 
+  // Dice Rewards Handler (Every win automatically added to user)
+  const handleDiceRewards = (rewards: DiceOutcome[]) => {
+    let totalUsd = 0;
+    let totalDiamonds = 0;
+    let totalKeys = 0;
+    let totalCoins = 0;
+
+    rewards.forEach((r) => {
+      if (r.type === 'usd') totalUsd += r.value;
+      if (r.type === 'diamonds') totalDiamonds += r.value;
+      if (r.type === 'keys') totalKeys += r.value;
+      if (r.type === 'coins') totalCoins += r.value;
+    });
+
+    setState((prev) => ({
+      ...prev,
+      reserveBalance: Math.round((prev.reserveBalance + totalUsd) * 100) / 100,
+      diamonds: (prev.diamonds || 0) + totalDiamonds,
+      keys: (prev.keys || 0) + totalKeys,
+      coins: prev.coins + totalCoins,
+      totalEarned: prev.totalEarned + totalCoins,
+    }));
+
+    const parts: string[] = [];
+    if (totalUsd > 0) parts.push(`+$${totalUsd.toFixed(2)} Reserve`);
+    if (totalDiamonds > 0) parts.push(`+${totalDiamonds} 💎`);
+    if (totalKeys > 0) parts.push(`+${totalKeys} 🗝️`);
+    if (totalCoins > 0) parts.push(`+${totalCoins.toLocaleString()} Pts`);
+
+    if (parts.length > 0) {
+      setMorseToastMessage(`🎲 DICE WIN: ${parts.join(', ')} added!`);
+    }
+  };
+
   const handleDebitCoins = (amount: number) => {
     setState((prev) => ({
       ...prev,
@@ -1165,6 +1201,13 @@ export default function App() {
                   setShowLayHatchModal(true);
                 }
               }}
+              onOpenDice={() => {
+                if (state.tapLevel < 15) {
+                  setMorseToastMessage('🔒 Dice unlocks at Level 15!');
+                } else {
+                  setShowDiceModal(true);
+                }
+              }}
               goldCoinImg={goldCoin}
             />
           </div>
@@ -1384,6 +1427,20 @@ export default function App() {
           diamonds={state.diamonds || 0}
           keys={state.keys || 0}
           coins={state.coins}
+        />
+      )}
+
+      {/* Dice Game Modal (Level 15+ Ludo Dice Arena with 8s Light Speed Spin) */}
+      {showDiceModal && (
+        <DiceGameModal
+          isOpen={showDiceModal}
+          onClose={() => setShowDiceModal(false)}
+          onWinReward={handleDiceRewards}
+          coins={state.coins}
+          reserveBalance={state.reserveBalance}
+          keys={state.keys || 0}
+          diamonds={state.diamonds || 0}
+          goldCoinImg={goldCoin}
         />
       )}
 
