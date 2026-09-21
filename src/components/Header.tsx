@@ -2,6 +2,7 @@ import React from 'react';
 import { Wallet, Settings, ChevronRight, Plus } from 'lucide-react';
 import { getTierByCoins, formatCompactNumber } from '../data/tiers';
 import { soundFx } from '../utils/audio';
+import { UserProfile } from '../types';
 
 interface HeaderProps {
   coins: number;
@@ -15,6 +16,8 @@ interface HeaderProps {
   onOpenBoost: () => void;
   stage?: number;
   goldCoinImg: string;
+  userProfile?: UserProfile;
+  onOpenProfileModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -29,6 +32,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenBoost,
   stage = 1,
   goldCoinImg,
+  userProfile,
+  onOpenProfileModal,
 }) => {
   const currentTier = getTierByCoins(totalEarned, stage);
   const isStage2 = stage === 2;
@@ -113,8 +118,30 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Action Icons: Wallet & Settings */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      {/* Action Icons: User ID, Wallet & Settings */}
+      <div className="flex items-center gap-1 sm:gap-1.5">
+        {userProfile && (
+          <button
+            id="header-user-id-btn"
+            type="button"
+            onClick={() => {
+              soundFx.playClick();
+              onOpenProfileModal?.();
+            }}
+            className="flex items-center gap-1 py-1 px-1.5 sm:px-2 rounded-xl bg-[#141824] border border-cyan-500/30 text-cyan-300 hover:border-cyan-400 hover:bg-cyan-500/10 active:scale-95 transition shadow-inner"
+            title={`User ID: ${userProfile.userId} (${userProfile.username}) - Click to personalize`}
+          >
+            <div
+              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-md bg-gradient-to-br ${userProfile.avatarColor} flex items-center justify-center text-[7px] sm:text-[8px] font-black text-white shrink-0 shadow`}
+            >
+              {(userProfile.username || userProfile.userId).substring(0, 1).toUpperCase()}
+            </div>
+            <span className="text-[9px] sm:text-[10px] font-mono font-black tracking-tight max-w-[55px] sm:max-w-[70px] truncate">
+              {userProfile.userId}
+            </span>
+          </button>
+        )}
+
         <button
           id="header-wallet-btn"
           onClick={() => {

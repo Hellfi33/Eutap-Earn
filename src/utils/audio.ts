@@ -381,6 +381,14 @@ class SoundController {
     } catch {}
   }
 
+  playError() {
+    this.playLoss();
+  }
+
+  playMorseError() {
+    this.playLoss();
+  }
+
   playHnLSpin() {
     if (!this.enabled) return;
     try {
@@ -406,10 +414,73 @@ class SoundController {
     } catch {}
   }
 
-  triggerHaptic() {
+  playMessageAlert() {
+    if (!this.enabled) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const freqs = [587.33, 880]; // D5 -> A5 gentle notification chime
+      freqs.forEach((f, i) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, this.ctx.currentTime + i * 0.08);
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime + i * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + i * 0.08 + 0.15);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(this.ctx.currentTime + i * 0.08);
+        osc.stop(this.ctx.currentTime + i * 0.08 + 0.16);
+      });
+    } catch {}
+  }
+
+  playMessageSent() {
+    if (!this.enabled) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(659.25, this.ctx.currentTime); // E5
+      osc.frequency.exponentialRampToValueAtTime(987.77, this.ctx.currentTime + 0.08); // B5 swoosh
+      gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.1);
+    } catch {}
+  }
+
+  playHoldTick(pitchMultiplier = 1) {
+    if (!this.enabled) return;
+    try {
+      this.initContext();
+      if (!this.ctx) return;
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      const freq = 400 * pitchMultiplier;
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.03);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.035);
+    } catch {}
+  }
+
+  triggerHaptic(ms = 12) {
     if (typeof window !== 'undefined' && 'vibrate' in navigator) {
       try {
-        navigator.vibrate(12);
+        navigator.vibrate(ms);
       } catch {}
     }
   }

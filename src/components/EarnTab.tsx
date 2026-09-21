@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
-import { Calendar, ChevronRight, ChevronLeft, Send, Twitter, Youtube, MessageSquare, Repeat, Wallet, Check, ExternalLink, Crown, Sparkles, TreePine, Lock, Egg, ArrowUpDown } from 'lucide-react';
-import { Task } from '../types';
+import { Calendar, ChevronRight, ChevronLeft, Send, Twitter, Youtube, MessageSquare, Repeat, Wallet, Check, ExternalLink, Crown, Sparkles, TreePine, Lock, Egg, ArrowUpDown, Zap, DollarSign, Gem, Key, Award, Flame } from 'lucide-react';
+import { Task, TapQuest } from '../types';
 import { INITIAL_TASKS } from '../data/tasks';
+import { TAP_QUESTS } from '../data/tapQuests';
 import { soundFx } from '../utils/audio';
 
 interface EarnTabProps {
   completedTaskIds: string[];
+  completedTapQuestIds?: string[];
+  totalTaps?: number;
   streakDay: number;
   wheelOfFortuneSpins?: number;
   tapLevel: number;
   onCompleteTask: (taskId: string, reward: number) => void;
+  onClaimTapQuest?: (quest: TapQuest) => void;
   onOpenDailyReward: () => void;
   onOpenWheelOfFortune?: () => void;
   onOpenTreePluck?: () => void;
@@ -21,10 +25,13 @@ interface EarnTabProps {
 
 export const EarnTab: React.FC<EarnTabProps> = ({
   completedTaskIds,
+  completedTapQuestIds = [],
+  totalTaps = 0,
   streakDay,
   wheelOfFortuneSpins = 6,
   tapLevel,
   onCompleteTask,
+  onClaimTapQuest,
   onOpenDailyReward,
   onOpenWheelOfFortune,
   onOpenTreePluck,
@@ -36,9 +43,15 @@ export const EarnTab: React.FC<EarnTabProps> = ({
   const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
   const [verifyingTaskId, setVerifyingTaskId] = useState<string | null>(null);
   const [carouselIndex, setCarouselIndex] = useState<number>(0);
+  const [taskCarouselIndex, setTaskCarouselIndex] = useState<number>(0); // 0 = Social/Community Tasks, 1 = Tap Quests
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [lockedNotice, setLockedNotice] = useState<string | null>(null);
 
   const completedCount = tasks.filter((t) => completedTaskIds.includes(t.id)).length;
+  const completedTapQuestsCount = TAP_QUESTS.filter((q) => completedTapQuestIds.includes(q.id)).length;
+  const claimableTapQuestsCount = TAP_QUESTS.filter(
+    (q) => totalTaps >= q.targetTaps && !completedTapQuestIds.includes(q.id)
+  ).length;
 
   const getTaskIcon = (iconName: string) => {
     switch (iconName) {
@@ -656,66 +669,367 @@ export const EarnTab: React.FC<EarnTabProps> = ({
         </div>
       </div>
 
-      {/* Tasks & Quests Section */}
-      <div>
+      {/* Tasks & Quests Carousel Section */}
+      <div
+        className="mt-3"
+        onTouchStart={(e) => setTouchStartX(e.touches[0].clientX)}
+        onTouchEnd={(e) => {
+          if (touchStartX === null) return;
+          const diff = touchStartX - e.changedTouches[0].clientX;
+          if (diff > 50) {
+            soundFx.playClick();
+            setTaskCarouselIndex(1);
+          } else if (diff < -50) {
+            soundFx.playClick();
+            setTaskCarouselIndex(0);
+          }
+          setTouchStartX(null);
+        }}
+      >
+        {/* Carousel Header & Controls */}
         <div className="flex items-center justify-between mb-2 px-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-            TASKS & QUESTS ({completedCount}/{tasks.length})
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+              {taskCarouselIndex === 0
+                ? `TASKS & QUESTS (${completedCount}/${tasks.length})`
+                : `TAP QUESTS (${completedTapQuestsCount}/${TAP_QUESTS.length})`}
+            </span>
+            <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-white/10 text-slate-300 font-mono">
+              {taskCarouselIndex + 1}/2
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              id="btn-tasks-carousel-prev"
+              onClick={() => {
+                soundFx.playClick();
+                setTaskCarouselIndex((prev) => (prev === 0 ? 1 : 0));
+              }}
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
+              aria-label="Previous tasks carousel page"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              id="btn-tasks-carousel-next"
+              onClick={() => {
+                soundFx.playClick();
+                setTaskCarouselIndex((prev) => (prev === 0 ? 1 : 0));
+              }}
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition"
+              aria-label="Next tasks carousel page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2.5">
-          {tasks.map((task) => {
-            const isCompleted = completedTaskIds.includes(task.id);
-            const isVerifying = verifyingTaskId === task.id;
+        {/* Carousel Tab Switcher */}
+        <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#10141e] border border-white/10 rounded-xl mb-3">
+          <button
+            id="btn-tab-carousel-tasks"
+            onClick={() => {
+              soundFx.playClick();
+              setTaskCarouselIndex(0);
+            }}
+            className={`py-2 px-2.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+              taskCarouselIndex === 0
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Check className="w-3.5 h-3.5 text-sky-400" />
+            <span>Social & Web3</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-black/30">
+              {completedCount}/{tasks.length}
+            </span>
+          </button>
 
-            return (
-              <div
-                key={task.id}
-                id={`task-item-${task.id}`}
-                className="bg-[#141923] border border-white/10 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-md"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center shrink-0">
-                    {getTaskIcon(task.icon)}
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-100 truncate">{task.title}</h4>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <img src={goldCoinImg} alt="" referrerPolicy="no-referrer" className="w-3.5 h-3.5 rounded-full" />
-                      <span className="text-xs font-black text-amber-400 font-['Rajdhani',sans-serif]">
-                        +{task.reward.toLocaleString()}
-                      </span>
+          <button
+            id="btn-tab-carousel-tap-quests"
+            onClick={() => {
+              soundFx.playClick();
+              setTaskCarouselIndex(1);
+            }}
+            className={`py-2 px-2.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 relative ${
+              taskCarouselIndex === 1
+                ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-black shadow-md'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Zap className={`w-3.5 h-3.5 ${taskCarouselIndex === 1 ? 'text-slate-950' : 'text-amber-400'}`} />
+            <span>Tap Quests</span>
+            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded ${taskCarouselIndex === 1 ? 'bg-black/20 text-slate-950' : 'bg-black/30 text-white'}`}>
+              {completedTapQuestsCount}/{TAP_QUESTS.length}
+            </span>
+            {claimableTapQuestsCount > 0 && (
+              <span className="absolute -top-1.5 -right-1 px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[9px] font-black animate-bounce shadow">
+                {claimableTapQuestsCount} READY
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Carousel Content */}
+        {taskCarouselIndex === 0 ? (
+          /* Slide 1: Original Social & Community Tasks */
+          <div className="flex flex-col gap-2.5 animate-in fade-in duration-200">
+            {tasks.map((task) => {
+              const isCompleted = completedTaskIds.includes(task.id);
+              const isVerifying = verifyingTaskId === task.id;
+
+              return (
+                <div
+                  key={task.id}
+                  id={`task-item-${task.id}`}
+                  className="bg-[#141923] border border-white/10 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-md"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center shrink-0">
+                      {getTaskIcon(task.icon)}
                     </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-100 truncate">{task.title}</h4>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <img src={goldCoinImg} alt="" referrerPolicy="no-referrer" className="w-3.5 h-3.5 rounded-full" />
+                        <span className="text-xs font-black text-amber-400 font-['Rajdhani',sans-serif]">
+                          +{task.reward.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0">
+                    {isCompleted ? (
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                        <Check className="w-4 h-4" />
+                      </div>
+                    ) : isVerifying ? (
+                      <button
+                        disabled
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30 flex items-center gap-1.5 animate-pulse"
+                      >
+                        <span className="w-3 h-3 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+                        <span>Checking</span>
+                      </button>
+                    ) : (
+                      <button
+                        id={`btn-task-start-${task.id}`}
+                        onClick={() => handleTaskAction(task)}
+                        className="px-4 py-1.5 rounded-xl bg-[#222836] hover:bg-[#2b3345] text-amber-400 hover:text-amber-300 font-bold text-xs border border-white/10 hover:border-amber-400/40 transition active:scale-95 shadow"
+                      >
+                        Start
+                      </button>
+                    )}
                   </div>
                 </div>
-
-                <div className="shrink-0">
-                  {isCompleted ? (
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                      <Check className="w-4 h-4" />
-                    </div>
-                  ) : isVerifying ? (
-                    <button
-                      disabled
-                      className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30 flex items-center gap-1.5 animate-pulse"
-                    >
-                      <span className="w-3 h-3 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
-                      <span>Checking</span>
-                    </button>
-                  ) : (
-                    <button
-                      id={`btn-task-start-${task.id}`}
-                      onClick={() => handleTaskAction(task)}
-                      className="px-4 py-1.5 rounded-xl bg-[#222836] hover:bg-[#2b3345] text-amber-400 hover:text-amber-300 font-bold text-xs border border-white/10 hover:border-amber-400/40 transition active:scale-95 shadow"
-                    >
-                      Start
-                    </button>
-                  )}
+              );
+            })}
+          </div>
+        ) : (
+          /* Slide 2: Tap Quests (15 Milestone Tasks with Mixed Rewards) */
+          <div className="flex flex-col gap-2.5 animate-in fade-in duration-200">
+            {/* Tap Quests Overview Card */}
+            <div className="bg-gradient-to-r from-[#17152b] via-[#1b1c33] to-[#121626] border border-amber-500/30 rounded-2xl p-3 shadow-md flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.3)] shrink-0">
+                  <Flame className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Lifetime Taps
+                  </span>
+                  <div className="text-base font-black text-amber-300 font-mono leading-tight">
+                    {totalTaps.toLocaleString()} <span className="text-xs font-semibold text-slate-400 font-sans">Taps</span>
+                  </div>
                 </div>
               </div>
-            );
-          })}
+
+              <div className="text-right">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Quests Claimed
+                </span>
+                <div className="text-sm font-black text-emerald-400 font-mono leading-tight">
+                  {completedTapQuestsCount} / {TAP_QUESTS.length}
+                </div>
+              </div>
+            </div>
+
+            {/* 15 Tap Quests List */}
+            {TAP_QUESTS.map((quest) => {
+              const isClaimed = completedTapQuestIds.includes(quest.id);
+              const isReadyToClaim = !isClaimed && totalTaps >= quest.targetTaps;
+              const progressPercent = Math.min(100, Math.floor((totalTaps / quest.targetTaps) * 100));
+              const remainingTaps = Math.max(0, quest.targetTaps - totalTaps);
+
+              return (
+                <div
+                  key={quest.id}
+                  id={`tap-quest-${quest.id}`}
+                  className={`rounded-2xl p-3.5 border transition-all ${
+                    isClaimed
+                      ? 'bg-[#10141e]/70 border-emerald-500/20 opacity-80'
+                      : isReadyToClaim
+                      ? 'bg-gradient-to-r from-[#1b1e2e] via-[#1e273f] to-[#171c2d] border-amber-400/60 shadow-[0_0_20px_rgba(251,191,36,0.2)]'
+                      : 'bg-[#141923] border-white/10'
+                  }`}
+                >
+                  {/* Top Bar: Icon, Title, Badge & Claim Button */}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                          isClaimed
+                            ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-400'
+                            : isReadyToClaim
+                            ? 'bg-amber-500/25 border-amber-400/60 text-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.4)]'
+                            : 'bg-white/5 border-white/10 text-slate-400'
+                        }`}
+                      >
+                        {isClaimed ? (
+                          <Check className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <Zap className={`w-4 h-4 ${isReadyToClaim ? 'text-amber-300 animate-pulse' : 'text-slate-400'}`} />
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-xs sm:text-sm font-black text-white font-['Rajdhani',sans-serif] tracking-wide">
+                            #{quest.questNumber} {quest.title}
+                          </h4>
+                          <span
+                            className={`text-[9px] font-black px-1.5 py-0.2 rounded border uppercase font-mono bg-gradient-to-r ${quest.badgeColor} text-white shadow-sm`}
+                          >
+                            {quest.badge}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate mt-0.2">{quest.description}</p>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      {isClaimed ? (
+                        <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Claimed</span>
+                        </div>
+                      ) : isReadyToClaim ? (
+                        <button
+                          id={`btn-claim-tap-quest-${quest.id}`}
+                          onClick={() => {
+                            if (onClaimTapQuest) {
+                              onClaimTapQuest(quest);
+                            }
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black text-xs shadow-[0_0_15px_rgba(251,191,36,0.6)] active:scale-95 transition flex items-center gap-1 animate-pulse"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Claim</span>
+                        </button>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-[10px] font-mono inline-block">
+                          {remainingTaps.toLocaleString()} left
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Progress Bar & Counter */}
+                  <div className="mb-2">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 mb-1">
+                      <span>
+                        {Math.min(totalTaps, quest.targetTaps).toLocaleString()} / {quest.targetTaps.toLocaleString()} Taps
+                      </span>
+                      <span
+                        className={
+                          isReadyToClaim
+                            ? 'text-amber-300 font-bold'
+                            : isClaimed
+                            ? 'text-emerald-400 font-bold'
+                            : 'text-slate-400'
+                        }
+                      >
+                        {isClaimed ? '100% Completed' : `${progressPercent}%`}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-black/60 overflow-hidden border border-white/5">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          isClaimed
+                            ? 'bg-emerald-400'
+                            : isReadyToClaim
+                            ? 'bg-gradient-to-r from-amber-400 to-yellow-300 shadow-[0_0_8px_rgba(251,191,36,0.8)]'
+                            : 'bg-gradient-to-r from-blue-500 to-cyan-400'
+                        }`}
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mixed Rewards Badges */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-white/5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-0.5">
+                      Rewards:
+                    </span>
+                    {quest.rewards.reserve && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-black text-[11px] shadow-sm">
+                        <DollarSign className="w-3 h-3 text-emerald-400" />
+                        +${quest.rewards.reserve}.00 Reserve
+                      </span>
+                    )}
+                    {quest.rewards.diamonds && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-bold text-[11px] shadow-sm">
+                        <Gem className="w-3 h-3 text-cyan-400" />
+                        +{quest.rewards.diamonds} Diamonds
+                      </span>
+                    )}
+                    {quest.rewards.keys && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 font-bold text-[11px] shadow-sm">
+                        <Key className="w-3 h-3 text-amber-400" />
+                        +{quest.rewards.keys} Keys
+                      </span>
+                    )}
+                    {quest.rewards.points && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 font-black text-[11px] shadow-sm">
+                        <img src={goldCoinImg} alt="" referrerPolicy="no-referrer" className="w-3 h-3 rounded-full" />
+                        +{quest.rewards.points.toLocaleString()} Points
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Carousel Indicator Dots */}
+        <div className="flex items-center justify-center gap-1.5 mt-4">
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setTaskCarouselIndex(0);
+            }}
+            className={`h-1.5 rounded-full transition-all ${
+              taskCarouselIndex === 0
+                ? 'w-6 bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]'
+                : 'w-2 bg-white/20 hover:bg-white/40'
+            }`}
+            aria-label="Slide 1: Social Tasks & Quests"
+          />
+          <button
+            onClick={() => {
+              soundFx.playClick();
+              setTaskCarouselIndex(1);
+            }}
+            className={`h-1.5 rounded-full transition-all ${
+              taskCarouselIndex === 1
+                ? 'w-6 bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]'
+                : 'w-2 bg-white/20 hover:bg-white/40'
+            }`}
+            aria-label="Slide 2: Tap Quests"
+          />
         </div>
       </div>
     </div>

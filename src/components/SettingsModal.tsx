@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Volume2, VolumeX, Smartphone, RotateCcw, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { X, Volume2, VolumeX, Smartphone, RotateCcw, ShieldCheck, AlertTriangle, User, Edit3 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
+import { UserProfile } from '../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -10,6 +11,8 @@ interface SettingsModalProps {
   onToggleSound: () => void;
   onToggleHaptics: () => void;
   onResetGame: () => void;
+  userProfile?: UserProfile;
+  onOpenProfileModal?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -20,6 +23,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleSound,
   onToggleHaptics,
   onResetGame,
+  userProfile,
+  onOpenProfileModal,
 }) => {
   const [confirmReset, setConfirmReset] = useState(false);
 
@@ -39,7 +44,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </button>
 
         <h3 className="text-base font-bold text-white mb-1">Game Settings</h3>
-        <span className="text-xs text-slate-400 mb-4">Manage audio, haptics, and data preferences</span>
+        <span className="text-xs text-slate-400 mb-4">Manage player identity, audio, and data</span>
+
+        {/* Personalized Player User ID Section */}
+        {userProfile && (
+          <div className="p-3.5 mb-3 rounded-2xl bg-gradient-to-r from-[#111728] to-[#141e34] border border-cyan-500/30 flex items-center justify-between shadow-inner">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className={`w-10 h-10 rounded-xl bg-gradient-to-br ${userProfile.avatarColor} flex items-center justify-center text-white font-bold text-sm shadow shrink-0`}
+              >
+                {(userProfile.username || userProfile.userId).substring(0, 2).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-white truncate">
+                    {userProfile.username}
+                  </span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-cyan-400/20 text-cyan-300 text-[9px] font-mono font-black border border-cyan-400/30">
+                    {userProfile.userId}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                  {userProfile.statusText || 'Active Player'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundFx.playClick();
+                onOpenProfileModal?.();
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 text-[10px] font-bold flex items-center gap-1 transition shrink-0 active:scale-95"
+            >
+              <Edit3 className="w-3 h-3" />
+              <span>Edit</span>
+            </button>
+          </div>
+        )}
 
         <div className="space-y-3 mb-5">
           {/* Sound FX */}

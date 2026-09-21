@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { GameState, FloatingTapNumber, MineCard } from './types';
+import { GameState, FloatingTapNumber, MineCard, TapQuest } from './types';
 import { loadGameState, saveGameState, resetGameState } from './utils/storage';
 import { soundFx } from './utils/audio';
 import { getTierByCoins } from './data/tiers';
@@ -35,6 +35,17 @@ import { LayHatchModal, HatchReward } from './components/LayHatchModal';
 import { DiceGameModal, DiceOutcome } from './components/DiceGameModal';
 import { HnLGameModal } from './components/HnLGameModal';
 import { PphClaimModal } from './components/PphClaimModal';
+import { MessagesTab } from './components/MessagesTab';
+import { PlatformMessage, UserProfile } from './types';
+import { UserProfileModal } from './components/UserProfileModal';
+import { loadUserProfile, saveUserProfile } from './utils/userProfile';
+import {
+  fetchPlatformMessages,
+  postPlatformMessage,
+  initPlatformSSE,
+  subscribeToPlatformMessages,
+  clearOldMockups,
+} from './utils/platformMessaging';
 import { BoostModal } from './components/BoostModal';
 import { ConnectWalletModal } from './components/ConnectWalletModal';
 import { TierModal } from './components/TierModal';
@@ -81,6 +92,110 @@ export default function App() {
   const [showStageEvolutionModal, setShowStageEvolutionModal] = useState(false);
   const [isAutoTapping, setIsAutoTapping] = useState(false);
   const [morseToastMessage, setMorseToastMessage] = useState<string | null>(null);
+
+  // User Profile & Personalized Identity (Everyone has a personalized User ID)
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => loadUserProfile());
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
+
+  // Real Platform Messaging (All mockups cleared; live notifications to everyone)
+  const [platformMessages, setPlatformMessages] = useState<PlatformMessage[]>([]);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
+  const [liveMessageNotification, setLiveMessageNotification] = useState<PlatformMessage | null>(null);
+
+  // Initialize and subscribe to real platform messages & SSE
+  useEffect(() => {
+    // Ensure all old mockups are purged
+    clearOldMockups();
+
+    // Fetch live messages from platform
+    fetchPlatformMessages().then((msgs) => {
+      setPlatformMessages(msgs);
+    });
+
+    // Real-time Server-Sent Events stream from the backend
+    const disconnectSSE = initPlatformSSE((newMsg) => {
+      setPlatformMessages((prev) => {
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+
+      // If message was sent by another player, notify everyone
+      if (newMsg.userId !== userProfile.userId) {
+        soundFx.playMessageAlert();
+        soundFx.triggerHaptic(25);
+        setUnreadMessagesCount((c) => c + 1);
+        setLiveMessageNotification(newMsg);
+      }
+    });
+
+    // Multi-tab real-time broadcast on same device/browser
+    const unsubscribeBroadcast = subscribeToPlatformMessages((newMsg) => {
+      setPlatformMessages((prev) => {
+        if (prev.some((m) => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+
+      if (newMsg.userId !== userProfile.userId) {
+        soundFx.playMessageAlert();
+        soundFx.triggerHaptic(25);
+        setUnreadMessagesCount((c) => c + 1);
+        setLiveMessageNotification(newMsg);
+      }
+    });
+
+    const handleProfileUpdated = (e: any) => {
+      if (e.detail) {
+        setUserProfile(e.detail);
+      }
+    };
+    window.addEventListener('eutap_profile_updated', handleProfileUpdated);
+
+    return () => {
+      disconnectSSE();
+      unsubscribeBroadcast();
+      window.removeEventListener('eutap_profile_updated', handleProfileUpdated);
+    };
+  }, [userProfile.userId]);
+
+  // Auto-dismiss live in-game notification banner after 4.5s
+  useEffect(() => {
+    if (liveMessageNotification) {
+      const timer = setTimeout(() => {
+        setLiveMessageNotification(null);
+      }, 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [liveMessageNotification]);
+
+  const handleSendPlatformMessage = async (text: string) => {
+    const sentMsg = await postPlatformMessage({
+      text,
+      userId: userProfile.userId,
+      username: userProfile.username,
+      userLevel: state.tapLevel,
+      userStage: state.stage,
+      avatarColor: userProfile.avatarColor,
+      badge: state.tapLevel >= 17 ? 'ELITE' : state.tapLevel >= 10 ? 'VIP' : undefined,
+    });
+
+    setPlatformMessages((prev) => {
+      if (prev.some((m) => m.id === sentMsg.id)) return prev;
+      return [...prev, sentMsg];
+    });
+  };
+
+  const handleSaveProfile = (updated: UserProfile) => {
+    setUserProfile(updated);
+    saveUserProfile(updated);
+    setMorseToastMessage(`User ID Updated: ${updated.userId}`);
+  };
+
+  const handleOpenMessages = () => {
+    soundFx.playClick();
+    setActiveTab('messages');
+    setUnreadMessagesCount(0);
+    setLiveMessageNotification(null);
+  };
 
   // Auto-dismiss transient toast messages after 1.2s so secret codes never leave persistent notices
   useEffect(() => {
@@ -491,6 +606,40 @@ export default function App() {
         completedTaskIds: [...prev.completedTaskIds, taskId],
       };
     });
+  };
+
+  // Tap Quest Milestone Claim Handler
+  const handleClaimTapQuest = (quest: TapQuest) => {
+    setState((prev) => {
+      const alreadyClaimed = (prev.completedTapQuestIds || []).includes(quest.id);
+      if (alreadyClaimed) return prev;
+      if (prev.totalTaps < quest.targetTaps) return prev;
+
+      const addCoins = quest.rewards.points || 0;
+      const addReserve = quest.rewards.reserve || 0;
+      const addDiamonds = quest.rewards.diamonds || 0;
+      const addKeys = quest.rewards.keys || 0;
+
+      return {
+        ...prev,
+        coins: prev.coins + addCoins,
+        totalEarned: prev.totalEarned + addCoins,
+        reserveBalance: prev.reserveBalance + addReserve,
+        diamonds: (prev.diamonds || 0) + addDiamonds,
+        keys: (prev.keys || 0) + addKeys,
+        completedTapQuestIds: [...(prev.completedTapQuestIds || []), quest.id],
+      };
+    });
+
+    const rewardParts: string[] = [];
+    if (quest.rewards.reserve) rewardParts.push(`+$${quest.rewards.reserve}.00 Reserve`);
+    if (quest.rewards.diamonds) rewardParts.push(`+${quest.rewards.diamonds} Diamonds`);
+    if (quest.rewards.keys) rewardParts.push(`+${quest.rewards.keys} Keys`);
+    if (quest.rewards.points) rewardParts.push(`+${quest.rewards.points.toLocaleString()} Points`);
+
+    setMorseToastMessage(`🎯 TAP QUEST CLAIMED: ${rewardParts.join(' • ')}`);
+    soundFx.playReward();
+    soundFx.triggerHaptic(25);
   };
 
   // Daily Streak Claim
@@ -1108,6 +1257,43 @@ export default function App() {
         </div>
       )}
 
+      {/* Live Platform Message Notification Banner (Broadcast to all players) */}
+      {liveMessageNotification && activeTab !== 'messages' && (
+        <div
+          onClick={handleOpenMessages}
+          className="fixed top-12 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm px-3.5 py-2.5 rounded-2xl bg-[#0c1222]/95 border border-cyan-400/80 shadow-[0_0_30px_rgba(6,182,212,0.45)] text-white cursor-pointer animate-in fade-in slide-in-from-top-3 duration-200 active:scale-95 transition flex items-center gap-3 backdrop-blur-md"
+        >
+          <div
+            className={`w-9 h-9 rounded-xl bg-gradient-to-br ${
+              liveMessageNotification.avatarColor || 'from-cyan-500 to-blue-600'
+            } flex items-center justify-center font-bold text-xs text-white shadow shrink-0`}
+          >
+            {(liveMessageNotification.username || liveMessageNotification.userId).charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-mono font-black text-cyan-300">
+                {liveMessageNotification.userId}
+              </span>
+              <span className="text-xs font-bold text-white truncate">
+                {liveMessageNotification.username}
+              </span>
+              <span className="text-[9px] px-1 py-0.2 rounded bg-white/10 text-slate-400 font-mono">
+                Lv.{liveMessageNotification.userLevel}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-200 truncate mt-0.5">
+              {liveMessageNotification.text}
+            </p>
+          </div>
+          <div className="shrink-0 flex items-center gap-1">
+            <span className="px-2 py-0.5 rounded-full bg-cyan-400 text-black text-[9px] font-black uppercase tracking-wider animate-pulse">
+              View
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Top Fixed Header */}
       <Header
         coins={state.coins}
@@ -1121,6 +1307,8 @@ export default function App() {
         onOpenBoost={() => setShowBoost(true)}
         stage={state.stage || 1}
         goldCoinImg={goldCoin}
+        userProfile={userProfile}
+        onOpenProfileModal={() => setShowProfileModal(true)}
       />
 
       {/* Main Tab Content */}
@@ -1201,10 +1389,13 @@ export default function App() {
           <div className="h-full overflow-y-auto overscroll-contain">
             <EarnTab
               completedTaskIds={state.completedTaskIds}
+              completedTapQuestIds={state.completedTapQuestIds || []}
+              totalTaps={state.totalTaps}
               streakDay={state.streakDay}
               wheelOfFortuneSpins={state.wheelOfFortuneSpins ?? 6}
               tapLevel={state.tapLevel}
               onCompleteTask={handleCompleteTask}
+              onClaimTapQuest={handleClaimTapQuest}
               onOpenDailyReward={() => setShowDailyReward(true)}
               onOpenWheelOfFortune={() => {
                 if (state.tapLevel < 7) {
@@ -1262,13 +1453,37 @@ export default function App() {
             />
           </div>
         )}
+
+        {activeTab === 'messages' && (
+          <div className="h-full overflow-hidden">
+            <MessagesTab
+              messages={platformMessages}
+              currentProfile={userProfile}
+              onSendMessage={handleSendPlatformMessage}
+              onOpenProfileModal={() => setShowProfileModal(true)}
+              onRefreshMessages={async () => {
+                const msgs = await fetchPlatformMessages();
+                setPlatformMessages(msgs);
+              }}
+              playerLevel={state.tapLevel}
+              playerStage={state.stage || 1}
+            />
+          </div>
+        )}
       </main>
 
-      {/* Bottom 5-Tab Navigation */}
+      {/* Bottom 6-Tab Navigation with Message Box between Earn and Airdrop */}
       <BottomNav
         activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab)}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'messages') {
+            setUnreadMessagesCount(0);
+            setLiveMessageNotification(null);
+          }
+        }}
         goldCoinImg={goldCoin}
+        unreadMessagesCount={unreadMessagesCount}
       />
 
       {/* Modals */}
@@ -1362,6 +1577,11 @@ export default function App() {
           onToggleSound={() => setState((p) => ({ ...p, soundEnabled: !p.soundEnabled }))}
           onToggleHaptics={() => setState((p) => ({ ...p, hapticsEnabled: !p.hapticsEnabled }))}
           onResetGame={handleResetGame}
+          userProfile={userProfile}
+          onOpenProfileModal={() => {
+            setShowSettings(false);
+            setShowProfileModal(true);
+          }}
         />
       )}
 
@@ -1509,6 +1729,19 @@ export default function App() {
             ) * pphRate
           }
           goldCoinImg={goldCoin}
+        />
+      )}
+
+      {/* User Profile & User ID Personalization Modal */}
+      {showProfileModal && (
+        <UserProfileModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          profile={userProfile}
+          onSaveProfile={handleSaveProfile}
+          playerLevel={state.tapLevel}
+          playerStage={state.stage || 1}
+          totalEarned={state.totalEarned}
         />
       )}
     </div>

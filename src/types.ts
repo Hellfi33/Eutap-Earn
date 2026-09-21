@@ -17,6 +17,24 @@ export interface Task {
   verifying?: boolean;
 }
 
+export interface TapQuestReward {
+  reserve?: number;
+  diamonds?: number;
+  keys?: number;
+  points?: number;
+}
+
+export interface TapQuest {
+  id: string;
+  questNumber: number;
+  targetTaps: number;
+  title: string;
+  description: string;
+  badge: string;
+  badgeColor: string;
+  rewards: TapQuestReward;
+}
+
 export interface MineCard {
   id: string;
   name: string;
@@ -151,6 +169,7 @@ export interface GameState {
 
   // Tasks
   completedTaskIds: string[];
+  completedTapQuestIds?: string[];
 
   // Mine Cards levels: cardId -> level
   mineCardLevels: Record<string, number>;
@@ -166,4 +185,55 @@ export interface GameState {
 
   // Secret ABCD Reward (max 2x every 24 hours)
   abcdRewardTimestamps: number[];
+}
+
+export interface UserProfile {
+  userId: string; // e.g. #EU-8492 or custom
+  username: string;
+  avatarColor: string;
+  statusText: string;
+  joinedTimestamp: number;
+}
+
+export interface PlatformMessage {
+  id: string;
+  userId: string; // sender's User ID (e.g. #EU-8921)
+  username: string;
+  userLevel: number;
+  userStage: number;
+  avatarColor: string;
+  badge?: string;
+  text: string;
+  timestamp: number;
+  isSelf?: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderName: string;
+  senderLevel: number;
+  text: string;
+  timestamp: number;
+  isSelf?: boolean;
+  avatarColor?: string;
+  badge?: string;
+}
+
+export interface DirectMessage {
+  id: string;
+  senderId: 'self' | string;
+  text: string;
+  timestamp: number;
+}
+
+export interface DirectContact {
+  id: string;
+  name: string;
+  level: number;
+  badge?: string;
+  avatarColor: string;
+  isOnline: boolean;
+  statusText: string;
+  messages: DirectMessage[];
+  unreadCount: number;
 }

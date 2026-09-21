@@ -56,6 +56,7 @@ export const INITIAL_STATE: GameState = {
   walletProvider: null,
 
   completedTaskIds: [],
+  completedTapQuestIds: [],
   mineCardLevels: {},
 
   referralCode: 'EUTAP-884912',
@@ -167,6 +168,7 @@ export function loadGameState(): GameState {
       spinCount,
       nextSpinRefillTime,
       abcdRewardTimestamps: validAbcdTimestamps,
+      completedTapQuestIds: Array.isArray(parsed.completedTapQuestIds) ? parsed.completedTapQuestIds : [],
     };
   } catch {
     return INITIAL_STATE;
