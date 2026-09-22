@@ -1,5 +1,8 @@
-import React from 'react';
-import { Sparkles, Clock, Wallet, Info, Lock, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, Clock, Wallet, Info, Lock, ShieldCheck, History, ChevronRight } from 'lucide-react';
+import { WithdrawalTransaction } from '../types';
+import { WithdrawalHistoryView } from './WithdrawalHistoryView';
+import { soundFx } from '../utils/audio';
 
 interface AirdropTabProps {
   walletConnected?: boolean;
@@ -12,6 +15,12 @@ interface AirdropTabProps {
   squadCount: number;
   onOpenWallet?: () => void;
   goldCoinImg: string;
+  withdrawals?: WithdrawalTransaction[];
+  reserveBalance?: number;
+  playerKeys?: number;
+  onSpeedUpTx?: (txId: string) => void;
+  onCancelTx?: (txId: string) => void;
+  initialView?: 'airdrop' | 'history';
 }
 
 export const AirdropTab: React.FC<AirdropTabProps> = ({
@@ -25,11 +34,34 @@ export const AirdropTab: React.FC<AirdropTabProps> = ({
   squadCount,
   onOpenWallet,
   goldCoinImg,
+  withdrawals = [],
+  reserveBalance = 0,
+  playerKeys = 0,
+  onSpeedUpTx,
+  onCancelTx,
+  initialView = 'airdrop',
 }) => {
+  const [currentView, setCurrentView] = useState<'airdrop' | 'history'>(initialView);
+
   // Calculate airdrop qualification power score based on player's efforts
   const airdropScore = Math.floor(
     coins * 0.5 + tapLevel * 10000 + totalTaps * 2 + squadCount * 50000 + (walletConnected ? 100000 : 0)
   );
+
+  const pendingCount = withdrawals.filter((w) => w.status === 'pending').length;
+
+  if (currentView === 'history') {
+    return (
+      <WithdrawalHistoryView
+        onBack={() => setCurrentView('airdrop')}
+        withdrawals={withdrawals}
+        reserveBalance={reserveBalance}
+        playerKeys={playerKeys}
+        onSpeedUpTx={onSpeedUpTx}
+        onCancelTx={onCancelTx}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col px-3.5 pt-2 pb-20 max-w-md mx-auto select-none">
@@ -51,6 +83,48 @@ export const AirdropTab: React.FC<AirdropTabProps> = ({
         <div className="w-7 h-7 rounded-full bg-black/40 border border-white/10 flex items-center justify-center p-0.5">
           <img src={goldCoinImg} alt="" referrerPolicy="no-referrer" className="w-full h-full rounded-full" />
         </div>
+      </div>
+
+      {/* Withdrawal History Prominent Button Card */}
+      <div className="mb-3.5">
+        <button
+          id="btn-withdrawal-history"
+          onClick={() => {
+            soundFx.playClick();
+            setCurrentView('history');
+          }}
+          className="w-full bg-gradient-to-r from-[#151a27] via-[#1c2438] to-[#151a27] hover:from-[#1b2234] hover:to-[#212b42] border border-amber-500/30 hover:border-amber-400/60 rounded-2xl p-3.5 flex items-center justify-between shadow-lg transition active:scale-[0.99] group text-left"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-400/30 flex items-center justify-center text-amber-400 group-hover:scale-105 transition shadow-[0_0_12px_rgba(251,191,36,0.2)] shrink-0">
+              <History className="w-5 h-5 text-amber-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs sm:text-sm font-black text-white font-['Rajdhani',sans-serif] tracking-wide uppercase truncate">
+                  Withdrawal History
+                </h4>
+                {pendingCount > 0 ? (
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-amber-500/20 border border-amber-500/40 text-amber-300 animate-pulse font-mono shrink-0">
+                    {pendingCount} PENDING
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-white/10 text-slate-300 font-mono shrink-0">
+                    {withdrawals.length} {withdrawals.length === 1 ? 'Record' : 'Records'}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                Check all successful, pending and failed transactions
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 text-amber-400 group-hover:translate-x-0.5 transition shrink-0 ml-2">
+            <span className="text-xs font-bold hidden sm:inline">View</span>
+            <ChevronRight className="w-4 h-4" />
+          </div>
+        </button>
       </div>
 
       {/* Airdrop Tasks Section Header */}

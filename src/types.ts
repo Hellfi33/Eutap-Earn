@@ -17,6 +17,22 @@ export interface Task {
   verifying?: boolean;
 }
 
+export type WithdrawalStatus = 'successful' | 'pending' | 'failed';
+
+export interface WithdrawalTransaction {
+  id: string;
+  txHash: string;
+  amount: number; // in USD
+  currency: string; // e.g. 'USDT', 'TON', 'SOL', 'BTC'
+  network: string; // e.g. 'USDT (TRC-20)'
+  destinationAddress: string;
+  keyFee: number;
+  status: WithdrawalStatus;
+  statusMessage?: string;
+  timestamp: number; // ms timestamp
+  completedAt?: number;
+}
+
 export interface TapQuestReward {
   reserve?: number;
   diamonds?: number;
@@ -185,6 +201,9 @@ export interface GameState {
 
   // Secret ABCD Reward (max 2x every 24 hours)
   abcdRewardTimestamps: number[];
+
+  // Real-time Withdrawal Transactions History (No mock samples)
+  withdrawals?: WithdrawalTransaction[];
 }
 
 export interface UserProfile {

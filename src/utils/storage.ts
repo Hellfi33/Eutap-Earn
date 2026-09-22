@@ -67,6 +67,7 @@ export const INITIAL_STATE: GameState = {
   hapticsEnabled: true,
 
   abcdRewardTimestamps: [],
+  withdrawals: [],
 };
 
 export function loadGameState(): GameState {
@@ -169,6 +170,7 @@ export function loadGameState(): GameState {
       nextSpinRefillTime,
       abcdRewardTimestamps: validAbcdTimestamps,
       completedTapQuestIds: Array.isArray(parsed.completedTapQuestIds) ? parsed.completedTapQuestIds : [],
+      withdrawals: Array.isArray(parsed.withdrawals) ? parsed.withdrawals : [],
     };
   } catch {
     return INITIAL_STATE;

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { GameState, FloatingTapNumber, MineCard, TapQuest } from './types';
+import { GameState, FloatingTapNumber, MineCard, TapQuest, WithdrawalTransaction } from './types';
 import { loadGameState, saveGameState, resetGameState } from './utils/storage';
 import { soundFx } from './utils/audio';
 import { getTierByCoins } from './data/tiers';
@@ -931,13 +931,101 @@ export default function App() {
   };
 
   // Secret Modal Handlers
-  const handleWithdrawReserve = (amount: number, keyFee: number, address: string, network: string) => {
+  const handleWithdrawReserve = (amount: number, keyFee: number, address: string, network: string, txHash?: string) => {
+    const hash = txHash || ('0x' + Array.from({ length: 48 }, () => Math.floor(Math.random() * 16).toString(16)).join(''));
+    const newTx: WithdrawalTransaction = {
+      id: `wd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      txHash: hash,
+      amount,
+      currency: network.includes('TON') ? 'TON' : network.includes('SOL') ? 'SOL' : network.includes('BTC') ? 'BTC' : 'USDT',
+      network,
+      destinationAddress: address,
+      keyFee,
+      status: 'pending',
+      statusMessage: 'Dispatched to mempool. Awaiting validator signatures...',
+      timestamp: Date.now(),
+    };
+
     setState((prev) => ({
       ...prev,
-      reserveBalance: Math.max(0, prev.reserveBalance - amount),
+      reserveBalance: Math.max(0, Math.round((prev.reserveBalance - amount) * 100) / 100),
       keys: Math.max(0, (prev.keys || 0) - keyFee),
+      withdrawals: [newTx, ...(prev.withdrawals || [])],
     }));
-    setMorseToastMessage(`WITHDRAWAL PROCESSED: $${amount.toFixed(2)} sent to ${network} (-${keyFee.toLocaleString()} Keys fee)`);
+
+    setMorseToastMessage(`WITHDRAWAL INITIATED: $${amount.toFixed(2)} sent to ${network} (-${keyFee.toLocaleString()} Keys fee)`);
+
+    // Automatic on-chain validation lifecycle:
+    // If address contains 'fail' or 'error', validate as failed & refund; otherwise confirm on-chain after 10s.
+    const isTestFail = address.toLowerCase().includes('fail') || address.toLowerCase().includes('error');
+    setTimeout(() => {
+      setState((prev) => {
+        const txs = prev.withdrawals || [];
+        const existingTx = txs.find((t) => t.id === newTx.id);
+        // If already completed or canceled, do not overwrite
+        if (!existingTx || existingTx.status !== 'pending') return prev;
+
+        return {
+          ...prev,
+          reserveBalance: isTestFail ? Math.round((prev.reserveBalance + amount) * 100) / 100 : prev.reserveBalance,
+          keys: isTestFail ? (prev.keys || 0) + keyFee : prev.keys,
+          withdrawals: txs.map((tx) =>
+            tx.id === newTx.id
+              ? {
+                  ...tx,
+                  status: isTestFail ? 'failed' : 'successful',
+                  statusMessage: isTestFail
+                    ? 'Transaction reverted by validator node: Address verification failure. Funds & keys refunded.'
+                    : 'Confirmed on-chain with 12/12 block confirmations. Payout finalized.',
+                  completedAt: Date.now(),
+                }
+              : tx
+          ),
+        };
+      });
+    }, 10000);
+  };
+
+  const handleSpeedUpTx = (txId: string) => {
+    setState((prev) => ({
+      ...prev,
+      withdrawals: (prev.withdrawals || []).map((tx) =>
+        tx.id === txId
+          ? {
+              ...tx,
+              status: 'successful',
+              statusMessage: 'Confirmed on-chain with 12/12 block confirmations. Payout finalized.',
+              completedAt: Date.now(),
+            }
+          : tx
+      ),
+    }));
+    soundFx.playReward();
+    setMorseToastMessage('TRANSACTION CONFIRMED: Block validation finalized on-chain.');
+  };
+
+  const handleCancelTx = (txId: string) => {
+    setState((prev) => {
+      const tx = (prev.withdrawals || []).find((t) => t.id === txId);
+      if (!tx || tx.status !== 'pending') return prev;
+      return {
+        ...prev,
+        reserveBalance: Math.round((prev.reserveBalance + tx.amount) * 100) / 100,
+        keys: (prev.keys || 0) + tx.keyFee,
+        withdrawals: (prev.withdrawals || []).map((t) =>
+          t.id === txId
+            ? {
+                ...t,
+                status: 'failed',
+                statusMessage: 'Transaction canceled by user. All funds and key fees refunded.',
+                completedAt: Date.now(),
+              }
+            : t
+        ),
+      };
+    });
+    soundFx.playClick();
+    setMorseToastMessage('TRANSACTION CANCELED: Funds & fees returned to balance.');
   };
 
   const handleWinDiamonds = (amount: number) => {
@@ -1450,6 +1538,11 @@ export default function App() {
               squadCount={state.squadMembers.length}
               onOpenWallet={() => setShowWallet(true)}
               goldCoinImg={goldCoin}
+              withdrawals={state.withdrawals || []}
+              reserveBalance={state.reserveBalance}
+              playerKeys={state.keys || 0}
+              onSpeedUpTx={handleSpeedUpTx}
+              onCancelTx={handleCancelTx}
             />
           </div>
         )}
@@ -1602,6 +1695,10 @@ export default function App() {
           reserveBalance={state.reserveBalance}
           playerKeys={state.keys || 0}
           onWithdraw={handleWithdrawReserve}
+          onViewHistory={() => {
+            setShowWithdrawModal(false);
+            setActiveTab('airdrop');
+          }}
         />
       )}
 

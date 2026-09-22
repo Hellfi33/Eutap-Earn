@@ -7,7 +7,8 @@ interface SecretReserveWithdrawalModalProps {
   onClose: () => void;
   reserveBalance: number;
   playerKeys: number;
-  onWithdraw: (amount: number, keyFee: number, address: string, network: string) => void;
+  onWithdraw: (amount: number, keyFee: number, address: string, network: string, txHash?: string) => void;
+  onViewHistory?: () => void;
 }
 
 const NETWORKS = [
@@ -37,6 +38,7 @@ export const SecretReserveWithdrawalModal: React.FC<SecretReserveWithdrawalModal
   reserveBalance,
   playerKeys = 0,
   onWithdraw,
+  onViewHistory,
 }) => {
   const [selectedNet, setSelectedNet] = useState(NETWORKS[0]);
   const [walletAddress, setWalletAddress] = useState('');
@@ -85,7 +87,7 @@ export const SecretReserveWithdrawalModal: React.FC<SecretReserveWithdrawalModal
     setTimeout(() => {
       soundFx.playReward();
       const mockTx = '0x' + Array.from({ length: 48 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-      onWithdraw(withdrawAmount, keyFee, walletAddress.trim(), selectedNet.name);
+      onWithdraw(withdrawAmount, keyFee, walletAddress.trim(), selectedNet.name, mockTx);
       setReceipt({
         txHash: mockTx,
         amount: withdrawAmount,
@@ -201,12 +203,27 @@ export const SecretReserveWithdrawalModal: React.FC<SecretReserveWithdrawalModal
                 </div>
               </div>
 
-              <button
-                onClick={handleClose}
-                className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-sm uppercase tracking-wider transition shadow-[0_0_20px_rgba(16,185,129,0.4)]"
-              >
-                Done
-              </button>
+              <div className="flex flex-col gap-2">
+                {onViewHistory && (
+                  <button
+                    id="btn-receipt-view-history"
+                    onClick={() => {
+                      handleClose();
+                      onViewHistory();
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider transition shadow-[0_0_15px_rgba(251,191,36,0.3)] flex items-center justify-center gap-1.5"
+                  >
+                    <span>View In Withdrawal History</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={handleClose}
+                  className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 font-bold text-xs uppercase tracking-wider transition"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           ) : (
             <>
