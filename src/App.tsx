@@ -34,6 +34,7 @@ import { TreePluckModal, TreePluckReward } from './components/TreePluckModal';
 import { LayHatchModal, HatchReward } from './components/LayHatchModal';
 import { DiceGameModal, DiceOutcome } from './components/DiceGameModal';
 import { HnLGameModal } from './components/HnLGameModal';
+import { RouletteStakeModal } from './components/RouletteStakeModal';
 import { PphClaimModal } from './components/PphClaimModal';
 import { MessagesTab } from './components/MessagesTab';
 import { PlatformMessage, UserProfile } from './types';
@@ -77,6 +78,7 @@ export default function App() {
   const [showLayHatchModal, setShowLayHatchModal] = useState(false);
   const [showDiceModal, setShowDiceModal] = useState(false);
   const [showHnLModal, setShowHnLModal] = useState(false);
+  const [showRouletteStakeModal, setShowRouletteStakeModal] = useState(false);
   const [showPphClaimModal, setShowPphClaimModal] = useState(false);
   const [showBoost, setShowBoost] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
@@ -1197,6 +1199,22 @@ export default function App() {
     setMorseToastMessage('🎁 +$5.00 TEST RESERVE CREDITED!');
   };
 
+  // Roulette 65 Stake Game Handlers (Automatic 60s Round Table)
+  const handleRouletteDebitStake = (amount: number) => {
+    setState((prev) => ({
+      ...prev,
+      reserveBalance: Math.max(0, Math.round((prev.reserveBalance - amount) * 100) / 100),
+    }));
+  };
+
+  const handleRouletteCreditWin = (payout: number) => {
+    setState((prev) => ({
+      ...prev,
+      reserveBalance: Math.round((prev.reserveBalance + payout) * 100) / 100,
+    }));
+    setMorseToastMessage(`🎰 ROULETTE WIN: +$${payout.toFixed(2)} credited to Reserve!`);
+  };
+
   const handleDebitCoins = (amount: number) => {
     setState((prev) => ({
       ...prev,
@@ -1520,6 +1538,8 @@ export default function App() {
                   setShowHnLModal(true);
                 }
               }}
+              reserveBalance={state.reserveBalance}
+              onOpenRouletteStake={() => setShowRouletteStakeModal(true)}
               goldCoinImg={goldCoin}
             />
           </div>
@@ -1805,6 +1825,17 @@ export default function App() {
           onAddDemoReserve={handleHnLAddDemoReserve}
           coins={state.coins}
           goldCoinImg={goldCoin}
+        />
+      )}
+
+      {/* Stake Roulette 65 Modal (Standard Round Table, 65 Numbers, 60s Auto-Rounds) */}
+      {showRouletteStakeModal && (
+        <RouletteStakeModal
+          isOpen={showRouletteStakeModal}
+          onClose={() => setShowRouletteStakeModal(false)}
+          reserveBalance={state.reserveBalance}
+          onDebitStake={handleRouletteDebitStake}
+          onCreditWin={handleRouletteCreditWin}
         />
       )}
 
