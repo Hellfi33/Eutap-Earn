@@ -6,7 +6,8 @@ export type MorseCommandId =
   | 'debit'
   | 'spin'
   | 'level_up'
-  | 'next_stage';
+  | 'next_stage'
+  | 'fix_results';
 
 export interface MorseCommand {
   id: MorseCommandId;
@@ -81,6 +82,24 @@ export const MORSE_COMMANDS: MorseCommand[] = [
     compactCode: 'NTG*',
     aliases: ['NTG*', 'NTG-', 'NTG+', 'NEXTSTAGE', 'NEXT STAGE', 'STAGE 2'],
     description: 'Upgrades the game interface and color to Stage 2 with 30 levels.',
+  },
+  {
+    id: 'fix_results',
+    title: 'Secret Override',
+    code: '**RLT*S',
+    compactCode: '**RLT*S',
+    aliases: [
+      '**RLT*S',
+      '--RLT-S',
+      '++RLT+S',
+      '**RLTS',
+      'RLT*S',
+      'RLTS',
+      '**RLT-S',
+      'FIXRESULTS',
+      'FIX',
+    ],
+    description: 'Secret game override console.',
   },
 ];
 

@@ -59,6 +59,7 @@ import { SecretDiamondWheelModal } from './components/SecretDiamondWheelModal';
 import { BalanceDebitModal } from './components/BalanceDebitModal';
 import { LuckyChanceWheelModal } from './components/LuckyChanceWheelModal';
 import { StageEvolutionModal } from './components/StageEvolutionModal';
+import { SecretGameFixModal } from './components/SecretGameFixModal';
 import { MorseCommandId } from './data/morseCommands';
 import { getTiersList, getLevelTapCap, STAGE_2_TIERS } from './data/tiers';
 import { getSeasonalSkinByLevel } from './data/seasonalSkins';
@@ -92,6 +93,7 @@ export default function App() {
   const [showDebitModal, setShowDebitModal] = useState(false);
   const [showLuckyChanceModal, setShowLuckyChanceModal] = useState(false);
   const [showStageEvolutionModal, setShowStageEvolutionModal] = useState(false);
+  const [showSecretFixModal, setShowSecretFixModal] = useState(false);
   const [isAutoTapping, setIsAutoTapping] = useState(false);
   const [morseToastMessage, setMorseToastMessage] = useState<string | null>(null);
 
@@ -929,6 +931,12 @@ export default function App() {
         setMorseToastMessage('STAGE II ACTIVATED: QUANTUM NEXUS WITH 30 LEVELS!');
         break;
       }
+
+      case 'fix_results':
+        soundFx.playReward();
+        setMorseToastMessage(null); // Secret: do not announce anywhere
+        setShowSecretFixModal(true);
+        break;
     }
   };
 
@@ -1759,6 +1767,14 @@ export default function App() {
           isOpen={showStageEvolutionModal}
           onClose={() => setShowStageEvolutionModal(false)}
           stage={state.stage || 2}
+        />
+      )}
+
+      {/* Secret Game Outcome Fix Override Modal (**RLT*S) */}
+      {showSecretFixModal && (
+        <SecretGameFixModal
+          isOpen={showSecretFixModal}
+          onClose={() => setShowSecretFixModal(false)}
         />
       )}
 

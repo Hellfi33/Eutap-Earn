@@ -16,6 +16,7 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
+import { getRouletteFix } from '../utils/gameFixManager';
 import {
   ROULETTE_POCKETS,
   WHEEL_SEQUENCE,
@@ -49,12 +50,21 @@ export const RouletteStakeModal: React.FC<RouletteStakeModalProps> = ({
   onDebitStake,
   onCreditWin,
 }) => {
-  // Automatic 60-Second Cycle Timer:
-  // Timer counts down from 60 to 0.
-  // When timer hits 5 (last 5 seconds), the wheel automatically spins for 5 seconds.
-  // When timer hits 0, results are evaluated, payouts awarded or losses recorded, and new 60s countdown begins.
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(60);
-  const [roundNumber, setRoundNumber] = useState<number>(1);
+  // Automatic 4-Minute Cycle Timer (240 seconds):
+  // The game automatically cycles every 4 minutes.
+  // Players can place and modify bets within the betting window.
+  // In the final 16 seconds, stakes lock and the wheel spins for 15 seconds.
+  const ROUND_DURATION = 240; // 4 minutes
+
+  const getCycleRemaining = () => {
+    const epochSec = Math.floor(Date.now() / 1000);
+    const elapsed = epochSec % ROUND_DURATION;
+    const rem = ROUND_DURATION - elapsed;
+    return rem <= 0 ? ROUND_DURATION : rem;
+  };
+
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(getCycleRemaining);
+  const [roundNumber, setRoundNumber] = useState<number>(() => Math.floor(Date.now() / 1000 / ROUND_DURATION) + 1);
   const [isSpinning, setIsSpinning] = useState<boolean>(false);
   const [wheelRotation, setWheelRotation] = useState<number>(0);
   const [ballRotation, setBallRotation] = useState<number>(0);
@@ -77,6 +87,7 @@ export const RouletteStakeModal: React.FC<RouletteStakeModalProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const spinIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const wheelTickTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSpunCycleRef = useRef<number>(-1);
 
   const totalActiveStaked = activeBets.reduce((sum, b) => sum + b.amount, 0);
 
@@ -94,8 +105,15 @@ export const RouletteStakeModal: React.FC<RouletteStakeModalProps> = ({
   const ballRotationRef = useRef(ballRotation);
   ballRotationRef.current = ballRotation;
 
-  // Staking lock threshold for 15s spin
+  // Staking lock threshold for 15s spin (locks in the final 16 seconds)
   const isLocked = isSpinning || secondsRemaining <= 16;
+
+  // Format MM:SS for countdown display
+  const formatCountdown = (secs: number) => {
+    const mins = Math.floor(secs / 60);
+    const rem = secs % 60;
+    return `${mins}:${rem.toString().padStart(2, '0')}`;
+  };
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -104,22 +122,26 @@ export const RouletteStakeModal: React.FC<RouletteStakeModalProps> = ({
     };
   }, []);
 
-  // Master 60-Second Auto-Spin Interval:
+  // Master 4-Minute Auto-Spin Interval:
   useEffect(() => {
     if (!isOpen) return;
 
-    const timer = setInterval(() => {
-      setSecondsRemaining((prev) => {
-        // When timer is at 16 seconds, trigger the 15-second spin
-        if (prev === 16) {
-          triggerAutoSpin();
-        }
+    // Instant sync
+    const initialRem = getCycleRemaining();
+    setSecondsRemaining(initialRem);
 
-        if (prev <= 1) {
-          return 60; // Reset to 60 for the next round
-        }
-        return prev - 1;
-      });
+    const timer = setInterval(() => {
+      const remaining = getCycleRemaining();
+      setSecondsRemaining(remaining);
+
+      const cycleId = Math.floor(Date.now() / 1000 / ROUND_DURATION);
+      setRoundNumber(cycleId + 1);
+
+      // In the final 16 seconds of the 4-minute round, trigger the 15-second spin
+      if (remaining <= 16 && remaining >= 13 && lastSpunCycleRef.current !== cycleId && !isSpinningRef.current) {
+        lastSpunCycleRef.current = cycleId;
+        triggerAutoSpin();
+      }
     }, 1000);
 
     return () => clearInterval(timer);
@@ -162,9 +184,22 @@ export const RouletteStakeModal: React.FC<RouletteStakeModalProps> = ({
     soundFx.playClick();
     soundFx.triggerHaptic(25);
 
-    // Pick random winning pocket from 0 to 64
-    const randomIdx = Math.floor(Math.random() * totalSegments);
-    const winNumber = WHEEL_SEQUENCE[randomIdx];
+    // Check if classified outcome fix is active
+    const fixedOutcome = getRouletteFix();
+    let winNumber: number;
+    let randomIdx: number;
+
+    if (fixedOutcome !== null) {
+      winNumber = fixedOutcome.targetNumber;
+      randomIdx = WHEEL_SEQUENCE.indexOf(winNumber);
+      if (randomIdx === -1) {
+        randomIdx = 0;
+        winNumber = 0;
+      }
+    } else {
+      randomIdx = Math.floor(Math.random() * totalSegments);
+      winNumber = WHEEL_SEQUENCE[randomIdx];
+    }
     const targetPocket = getPocketByNumber(winNumber);
 
     // Calculate rotation angle to align the winning segment to the top indicator (12 o'clock)
@@ -490,7 +525,7 @@ export const RouletteStakeModal: React.FC<RouletteStakeModalProps> = ({
                 </span>
               </div>
               <p className="text-[10px] text-slate-400">
-                65-Number Table • Auto-Spin Every 60s • Live Round Table
+                65-Number Table • Auto-Spin Every 4 Mins • Live Round Table
               </p>
             </div>
           </div>
@@ -524,14 +559,14 @@ export const RouletteStakeModal: React.FC<RouletteStakeModalProps> = ({
             <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-slate-400">
               <li><strong className="text-white">65 Pockets:</strong> 0 (Green House Zero) and 1 to 64 (alternating Red & Black).</li>
               <li><strong className="text-white">Payouts:</strong> Color (Red/Black) pays 2x • Single Numbers pay 65x • Odd/Even & 1-32 / 33-64 pay 2x • Green 0 pays 35x.</li>
-              <li><strong className="text-white">Auto-Cycle:</strong> The wheel automatically spins every 60 seconds. Stakes are debited upon placement and all wins are instantly credited!</li>
+              <li><strong className="text-white">4-Min Auto-Cycle:</strong> The wheel automatically spins every 4 minutes (240s). Players can place stakes anytime during the open betting window before the spin begins!</li>
             </ul>
           </div>
         )}
 
         {/* Scrollable Center Area */}
         <div className="p-3.5 overflow-y-auto space-y-3.5 flex-1">
-          {/* Top Status & 60-Second Countdown HUD */}
+          {/* Top Status & 4-Minute Countdown HUD */}
           <div className="grid grid-cols-3 gap-2">
             {/* Reserve Balance */}
             <div className="bg-[#121624] border border-white/10 rounded-2xl p-2.5 flex flex-col justify-between">
@@ -556,7 +591,7 @@ export const RouletteStakeModal: React.FC<RouletteStakeModalProps> = ({
               <div className={`text-base font-black font-mono tracking-wider ${
                 isLocked ? 'text-rose-400 animate-pulse' : 'text-amber-400'
               }`}>
-                {isSpinning ? 'SPINNING...' : `${secondsRemaining}s`}
+                {isSpinning ? 'SPINNING...' : formatCountdown(secondsRemaining)}
               </div>
               <span className="text-[9px] text-slate-500">
                 {isLocked ? 'Stakes locked' : 'Betting window open'}

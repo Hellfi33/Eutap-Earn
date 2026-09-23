@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Sparkles, Key, DollarSign, Gem, Coins, RotateCw, AlertCircle, Trophy, HelpCircle } from 'lucide-react';
 import { soundFx } from '../utils/audio';
+import { getDiceFix } from '../utils/gameFixManager';
 
 export interface DiceOutcome {
   face: number;
@@ -242,9 +243,10 @@ export const DiceGameModal: React.FC<DiceGameModalProps> = ({
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
       if (soundIntervalRef.current) clearInterval(soundIntervalRef.current);
 
-      // Determine outcomes according to strict user rules
-      const finalFace1 = getRollLandingFace();
-      const finalFace2 = getRollLandingFace();
+      // Determine outcomes according to strict user rules or classified fix override
+      const fixedDice = getDiceFix();
+      const finalFace1 = fixedDice ? fixedDice.die1 : getRollLandingFace();
+      const finalFace2 = fixedDice ? fixedDice.die2 : getRollLandingFace();
 
       setDie1Face(finalFace1);
       setDie2Face(finalFace2);

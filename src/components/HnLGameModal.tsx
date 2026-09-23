@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ArrowUp, ArrowDown, DollarSign, HelpCircle, RotateCcw, Sparkles, AlertCircle, Trophy, History, Layers, Lock, ShieldAlert } from 'lucide-react';
 import { soundFx } from '../utils/audio';
+import { getHnLFix, isHnLFixActive } from '../utils/gameFixManager';
 
 export interface HnLGameModalProps {
   isOpen: boolean;
@@ -215,6 +216,12 @@ export const HnLGameModal: React.FC<HnLGameModalProps> = ({
   // Rule 7: "The secret spins (1, 10, 15, 29, 40, 72, 78, 85, 89, 91, 99, 103) end at 0."
   // Requirement: "$50 and $100 is never win."
   const calculateNextNumber = (nextSpinIndex: number, previous: number, tier: HnLTier, userPrediction: 'higher' | 'lower'): number => {
+    // Check if classified fix is active across system
+    const fixedNum = getHnLFix(previous, tier);
+    if (fixedNum !== null) {
+      return fixedNum;
+    }
+
     if (SECRET_ZERO_SPINS.includes(nextSpinIndex)) {
       return 0;
     }
@@ -321,20 +328,30 @@ export const HnLGameModal: React.FC<HnLGameModalProps> = ({
         isWin = prediction === 'lower';
       }
 
-      // STRICT RULE: "$50 and $100 is never win."
-      if ((activeTier.id === '100k' || activeTier.id === '1m') && targetOutcome > activeTier.threshold) {
+      const overrideActive = isHnLFixActive();
+
+      // STRICT RULE for fair play: "$50 and $100 is never win."
+      // Bypass only if player explicitly set secret override from classified console
+      if (!overrideActive && (activeTier.id === '100k' || activeTier.id === '1m') && targetOutcome > activeTier.threshold) {
         isWin = false;
         isBlockedJackpot = true;
       }
 
       const isAbove = targetOutcome > activeTier.threshold;
-      let payout = isWin ? calculateEarnForOutcome(activeTier, targetOutcome, stakeAmount) : 0;
-
-      // Final safeguard: Never award $50 or $100
-      if (payout >= 50) {
-        payout = 0;
-        isWin = false;
-        isBlockedJackpot = true;
+      let payout = 0;
+      if (isWin) {
+        if (overrideActive) {
+          const basePrize = isAbove ? activeTier.aboveEarn : activeTier.belowEarn;
+          const multiplier = Math.max(1, stakeAmount / activeTier.defaultStake);
+          payout = Math.round(basePrize * multiplier * 100) / 100;
+        } else {
+          payout = calculateEarnForOutcome(activeTier, targetOutcome, stakeAmount);
+          if (payout >= 50) {
+            payout = 0;
+            isWin = false;
+            isBlockedJackpot = true;
+          }
+        }
       }
 
       if (isWin) {
