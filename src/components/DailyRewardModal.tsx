@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Calendar, Check, Sparkles } from 'lucide-react';
 import { DAILY_STREAK_REWARDS } from '../data/tasks';
 import { soundFx } from '../utils/audio';
+import { triggerAdLoad } from '../utils/adManager';
 
 interface DailyRewardModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export const DailyRewardModal: React.FC<DailyRewardModalProps> = ({
   const nextReward = DAILY_STREAK_REWARDS.find((r) => r.day === nextDay)?.reward || 500;
 
   const handleClaim = () => {
+    triggerAdLoad();
     soundFx.playReward();
     onClaimDay(nextDay, nextReward);
   };

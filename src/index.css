@@ -51,3 +51,56 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+/* ==============================================================
+   AD BANNER SUPPRESSION (Clean UI - No on-page ads)
+   Strictly stop any advertisement banners from displaying on page.
+   The ad is only displayed in push-over to another page upon user click.
+   ============================================================== */
+[class*="_ciw"],
+[id*="_ciw"],
+._ciw-wrap,
+._ciw-wrap__compact,
+._ciw-header,
+._ciw-main,
+._ciw-close,
+._ciw-body,
+._ciw-image-wrap,
+[id*="admp"],
+[class*="admp"],
+[id*="wpadmngr"],
+[class*="wpadmngr"],
+[id*="ad-banner"],
+[class*="ad-banner"],
+[id*="ad_banner"],
+[class*="ad_banner"],
+[id*="footer-ad"],
+[class*="footer-ad"],
+[id*="bottom-ad"],
+[class*="bottom-ad"],
+[id*="floating-ad"],
+[class*="floating-ad"],
+iframe[src*="wpadmngr"],
+iframe[src*="adManager"],
+iframe[src*="onclckinpg"],
+iframe[src*="onclckinp"],
+iframe[src*="syndication"],
+iframe[src*="nawpush"],
+body > div[style*="fixed"][style*="bottom:"],
+body > div[style*="fixed"][style*="bottom: 0"],
+body > div[style*="fixed"][style*="bottom:0"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  width: 0 !important;
+  max-width: 0 !important;
+  position: absolute !important;
+  top: -99999px !important;
+  left: -99999px !important;
+  z-index: -99999 !important;
+  overflow: hidden !important;
+}
+

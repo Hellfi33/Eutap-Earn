@@ -18,6 +18,7 @@ interface HeaderProps {
   goldCoinImg: string;
   userProfile?: UserProfile;
   onOpenProfileModal?: () => void;
+  onOpenInfo?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   goldCoinImg,
   userProfile,
   onOpenProfileModal,
+  onOpenInfo,
 }) => {
   const currentTier = getTierByCoins(totalEarned, stage);
   const isStage2 = stage === 2;
@@ -159,6 +161,18 @@ export const Header: React.FC<HeaderProps> = ({
           {walletConnected && (
             <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
           )}
+        </button>
+
+        <button
+          id="header-info-hub-btn"
+          onClick={() => {
+            soundFx.playClick();
+            if (onOpenInfo) onOpenInfo();
+          }}
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#151922] border border-cyan-500/30 text-cyan-400 hover:border-cyan-400 hover:bg-cyan-500/10 active:scale-95 transition flex items-center justify-center shadow-inner"
+          title="Information Hub (5-Box Columns)"
+        >
+          <span className="font-['Rajdhani',sans-serif] font-black text-xs sm:text-sm">I</span>
         </button>
 
         <button

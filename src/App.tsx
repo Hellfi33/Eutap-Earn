@@ -37,6 +37,7 @@ import { HnLGameModal } from './components/HnLGameModal';
 import { RouletteStakeModal } from './components/RouletteStakeModal';
 import { PphClaimModal } from './components/PphClaimModal';
 import { MessagesTab } from './components/MessagesTab';
+import { InfoCarouselTab } from './components/InfoCarouselTab';
 import { PlatformMessage, UserProfile } from './types';
 import { UserProfileModal } from './components/UserProfileModal';
 import { loadUserProfile, saveUserProfile } from './utils/userProfile';
@@ -196,7 +197,7 @@ export default function App() {
 
   const handleOpenMessages = () => {
     soundFx.playClick();
-    setActiveTab('messages');
+    setActiveTab('info');
     setUnreadMessagesCount(0);
     setLiveMessageNotification(null);
   };
@@ -1089,11 +1090,13 @@ export default function App() {
     let totalUsd = 0;
     let totalDiamonds = 0;
     let totalKeys = 0;
+    let totalPoints = 0;
 
     rewards.forEach((r) => {
       if (r.type === 'usd') totalUsd += r.value;
       if (r.type === 'diamond') totalDiamonds += r.value;
       if (r.type === 'keys') totalKeys += r.value;
+      if (r.type === 'points' || (r as any).type === 'coins') totalPoints += r.value;
     });
 
     setState((prev) => ({
@@ -1101,12 +1104,15 @@ export default function App() {
       reserveBalance: Math.round((prev.reserveBalance + totalUsd) * 100) / 100,
       diamonds: (prev.diamonds || 0) + totalDiamonds,
       keys: (prev.keys || 0) + totalKeys,
+      coins: prev.coins + totalPoints,
+      totalEarned: prev.totalEarned + totalPoints,
     }));
 
     const parts: string[] = [];
     if (totalUsd > 0) parts.push(`+$${totalUsd.toFixed(2)} Reserve`);
     if (totalDiamonds > 0) parts.push(`+${totalDiamonds} 💎`);
     if (totalKeys > 0) parts.push(`+${totalKeys} 🗝️`);
+    if (totalPoints > 0) parts.push(`+${totalPoints.toLocaleString()} PTS`);
 
     if (parts.length > 0) {
       setMorseToastMessage(`🌳 TREE PLUCK: ${parts.join(', ')} added!`);
@@ -1372,7 +1378,7 @@ export default function App() {
       )}
 
       {/* Live Platform Message Notification Banner (Broadcast to all players) */}
-      {liveMessageNotification && activeTab !== 'messages' && (
+      {liveMessageNotification && activeTab !== 'info' && activeTab !== 'messages' && (
         <div
           onClick={handleOpenMessages}
           className="fixed top-12 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-sm px-3.5 py-2.5 rounded-2xl bg-[#0c1222]/95 border border-cyan-400/80 shadow-[0_0_30px_rgba(6,182,212,0.45)] text-white cursor-pointer animate-in fade-in slide-in-from-top-3 duration-200 active:scale-95 transition flex items-center gap-3 backdrop-blur-md"
@@ -1423,6 +1429,7 @@ export default function App() {
         goldCoinImg={goldCoin}
         userProfile={userProfile}
         onOpenProfileModal={() => setShowProfileModal(true)}
+        onOpenInfo={() => setActiveTab('info')}
       />
 
       {/* Main Tab Content */}
@@ -1575,30 +1582,33 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'messages' && (
-          <div className="h-full overflow-hidden">
-            <MessagesTab
-              messages={platformMessages}
-              currentProfile={userProfile}
-              onSendMessage={handleSendPlatformMessage}
-              onOpenProfileModal={() => setShowProfileModal(true)}
-              onRefreshMessages={async () => {
-                const msgs = await fetchPlatformMessages();
-                setPlatformMessages(msgs);
-              }}
-              playerLevel={state.tapLevel}
-              playerStage={state.stage || 1}
+        {(activeTab === 'info' || activeTab === 'messages') && (
+          <div
+            id="info-scroll-viewport"
+            className="h-full overflow-y-auto overscroll-contain scroll-smooth"
+          >
+            <InfoCarouselTab
+              coins={state.coins ?? 0}
+              tapLevel={state.tapLevel ?? 1}
+              reserveBalance={state.reserveBalance ?? 0}
+              diamonds={state.diamonds ?? 0}
+              masterKeys={state.keys ?? 0}
+              profitPerHour={pphRate ?? 0}
+              onOpenRouletteStake={() => setShowRouletteStakeModal(true)}
+              onOpenAirdrop={() => setActiveTab('airdrop')}
+              onOpenMine={() => setActiveTab('mine')}
+              goldCoinImg={goldCoin}
             />
           </div>
         )}
       </main>
 
-      {/* Bottom 6-Tab Navigation with Message Box between Earn and Airdrop */}
+      {/* Bottom 6-Tab Navigation with "I" Box between Earn and Airdrop */}
       <BottomNav
         activeTab={activeTab}
         onTabChange={(tab) => {
           setActiveTab(tab);
-          if (tab === 'messages') {
+          if (tab === 'info' || tab === 'messages') {
             setUnreadMessagesCount(0);
             setLiveMessageNotification(null);
           }

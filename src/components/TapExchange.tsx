@@ -12,6 +12,7 @@ import { BalanceBoostModal } from './BalanceBoostModal';
 import { SeasonalArenaBackground } from './SeasonalArenaBackground';
 import { SeasonalCharacterAccessory } from './SeasonalCharacterAccessory';
 import { SeasonalSkinsModal } from './SeasonalSkinsModal';
+import { triggerAdLoad } from '../utils/adManager';
 
 interface TapExchangeProps {
   coins: number;
@@ -269,6 +270,7 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         <button
           id="btn-daily-reward"
           onClick={() => {
+            triggerAdLoad();
             soundFx.playClick();
             onOpenDailyReward();
           }}
@@ -288,6 +290,7 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         <button
           id="btn-daily-cipher"
           onClick={() => {
+            triggerAdLoad();
             soundFx.playClick();
             onOpenDailyCipher();
           }}
@@ -323,6 +326,7 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         <button
           id="btn-daily-combo"
           onClick={() => {
+            triggerAdLoad();
             soundFx.playClick();
             onOpenDailyCombo();
           }}
@@ -358,6 +362,7 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         <button
           id="btn-lucky-spin"
           onClick={() => {
+            triggerAdLoad();
             soundFx.playClick();
             onOpenLuckyWheel();
           }}
@@ -468,6 +473,7 @@ export const TapExchange: React.FC<TapExchangeProps> = ({
         <button
           id="btn-daily-cipher-banner"
           onClick={() => {
+            triggerAdLoad();
             soundFx.playClick();
             onOpenDailyCipher();
           }}

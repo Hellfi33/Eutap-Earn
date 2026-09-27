@@ -2,7 +2,7 @@ import React from 'react';
 import { Pickaxe, Users, CircleDollarSign, MessageSquare } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
-export type TabType = 'exchange' | 'mine' | 'friends' | 'earn' | 'messages' | 'airdrop';
+export type TabType = 'exchange' | 'mine' | 'friends' | 'earn' | 'info' | 'messages' | 'airdrop';
 
 interface BottomNavProps {
   activeTab: TabType;
@@ -39,8 +39,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
       icon: <CircleDollarSign className="w-5 h-5" />,
     },
     {
-      id: 'messages',
-      label: 'Messages',
+      id: 'info',
+      label: 'I',
       custom: true,
     },
     {
@@ -54,8 +54,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     <nav className="w-full shrink-0 z-40 bg-[#0c1017]/95 backdrop-blur-md border-t border-white/10 pb-[env(safe-area-inset-bottom,6px)] pt-1 px-1">
       <div className="w-full grid grid-cols-6 gap-0.5 sm:gap-1">
         {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          const isMessages = tab.id === 'messages';
+          const isInfo = tab.id === 'info' || tab.id === 'messages';
+          const isActive = activeTab === tab.id || (isInfo && (activeTab === 'info' || activeTab === 'messages'));
 
           return (
             <button
@@ -67,10 +67,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               }}
               className={`relative flex flex-col items-center justify-center py-1 px-0.5 rounded-xl transition-all ${
                 isActive
-                  ? isMessages
+                  ? isInfo
                     ? 'text-cyan-300 bg-cyan-950/40'
                     : 'text-amber-400 bg-white/5'
-                  : isMessages && unreadMessagesCount > 0
+                  : isInfo && unreadMessagesCount > 0
                   ? 'text-cyan-400 hover:text-cyan-300'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
@@ -79,7 +79,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               {isActive && (
                 <div
                   className={`absolute top-0 w-6 h-0.5 rounded-full ${
-                    isMessages
+                    isInfo
                       ? 'bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]'
                       : 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]'
                   }`}
@@ -97,8 +97,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                   >
                     EUTAP
                   </span>
-                ) : tab.id === 'messages' ? (
-                  /* Custom Message Box Button matching Screenshot_20260920-124714~2.jpg */
+                ) : isInfo ? (
+                  /* Custom "I" Button */
                   <div className="relative">
                     <div
                       className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl border flex items-center justify-center transition-all ${
@@ -106,10 +106,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                           ? 'border-cyan-400 bg-cyan-500/30 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.5)]'
                           : unreadMessagesCount > 0
                           ? 'border-cyan-500/60 bg-cyan-950/50 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
-                          : 'border-white/15 bg-white/5 text-slate-400 hover:border-cyan-500/40 hover:text-slate-300'
+                          : 'border-white/15 bg-white/5 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200'
                       }`}
                     >
-                      <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2]" />
+                      <span className="font-['Rajdhani',sans-serif] font-black text-sm tracking-wider text-cyan-300">
+                        I
+                      </span>
                     </div>
 
                     {/* Circular cyan unread badge matching image */}

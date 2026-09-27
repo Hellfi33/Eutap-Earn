@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Calendar, ChevronRight, ChevronLeft, Send, Twitter, Youtube, MessageSquare, Repeat, Wallet, Check, ExternalLink, Crown, Sparkles, TreePine, Lock, Egg, ArrowUpDown, Zap, DollarSign, Gem, Key, Award, Flame, RotateCcw } from 'lucide-react';
+import { Calendar, ChevronRight, ChevronLeft, Send, Twitter, Youtube, MessageSquare, Repeat, Wallet, Check, ExternalLink, Crown, Sparkles, TreePine, Lock, Egg, ArrowUpDown, Zap, DollarSign, Gem, Key, Award, Flame, RotateCcw, Clock } from 'lucide-react';
 import { Task, TapQuest } from '../types';
 import { INITIAL_TASKS } from '../data/tasks';
 import { TAP_QUESTS } from '../data/tapQuests';
 import { soundFx } from '../utils/audio';
+import { getTreePluckLimit, formatCooldownTime } from '../utils/treePluckLimit';
+import { triggerAdLoad } from '../utils/adManager';
 
 interface EarnTabProps {
   completedTaskIds: string[];
@@ -78,6 +80,9 @@ export const EarnTab: React.FC<EarnTabProps> = ({
 
   const handleTaskAction = (task: Task) => {
     if (completedTaskIds.includes(task.id)) return;
+
+    // Trigger ad network load on task start
+    triggerAdLoad();
 
     soundFx.playClick();
     if (task.actionUrl) {
@@ -160,6 +165,7 @@ export const EarnTab: React.FC<EarnTabProps> = ({
             <button
               id="btn-earn-streak-checkin"
               onClick={() => {
+                triggerAdLoad();
                 soundFx.playClick();
                 onOpenDailyReward();
               }}
@@ -195,6 +201,7 @@ export const EarnTab: React.FC<EarnTabProps> = ({
                   setLockedNotice(`Locked! Wheel of Fortune unlocks at Level 7 (Current: Lv.${tapLevel})`);
                   setTimeout(() => setLockedNotice(null), 2500);
                 } else {
+                  triggerAdLoad();
                   soundFx.playClick();
                   if (onOpenWheelOfFortune) onOpenWheelOfFortune();
                 }
@@ -316,9 +323,17 @@ export const EarnTab: React.FC<EarnTabProps> = ({
                         LEVEL UP TO 9
                       </span>
                     ) : (
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/25 text-[9px] font-black text-emerald-300 border border-emerald-400/40 animate-pulse">
-                        UNLOCKED
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-500/25 text-[9px] font-black text-emerald-300 border border-emerald-400/40">
+                          {getTreePluckLimit().playsRemaining}/2 PLAYS
+                        </span>
+                        {getTreePluckLimit().cooldownExpiresAt > Date.now() && getTreePluckLimit().playsRemaining < 2 && (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-[9px] font-mono font-bold text-amber-300 border border-amber-500/30 flex items-center gap-0.5">
+                            <Clock className="w-2.5 h-2.5" />
+                            {formatCooldownTime(Math.max(0, getTreePluckLimit().cooldownExpiresAt - Date.now()))}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -841,7 +856,10 @@ export const EarnTab: React.FC<EarnTabProps> = ({
                     ) : (
                       <button
                         id={`btn-task-start-${task.id}`}
-                        onClick={() => handleTaskAction(task)}
+                        onClick={() => {
+                          triggerAdLoad();
+                          handleTaskAction(task);
+                        }}
                         className="px-4 py-1.5 rounded-xl bg-[#222836] hover:bg-[#2b3345] text-amber-400 hover:text-amber-300 font-bold text-xs border border-white/10 hover:border-amber-400/40 transition active:scale-95 shadow"
                       >
                         Start
@@ -1097,6 +1115,7 @@ export const EarnTab: React.FC<EarnTabProps> = ({
               <button
                 id="btn-open-roulette-stake"
                 onClick={() => {
+                  triggerAdLoad();
                   soundFx.playClick();
                   if (onOpenRouletteStake) onOpenRouletteStake();
                 }}

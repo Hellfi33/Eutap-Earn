@@ -14,6 +14,8 @@ import {
   AlertCircle,
   Volume2,
   VolumeX,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 import { getRouletteFix } from '../utils/gameFixManager';
@@ -82,7 +84,19 @@ export const RouletteStakeModal: React.FC<RouletteStakeModalProps> = ({
   } | null>(null);
   const [history, setHistory] = useState<RoundHistoryItem[]>([]);
   const [quickAmountSelected, setQuickAmountSelected] = useState<number>(1);
+  const [customStakeInput, setCustomStakeInput] = useState<string>('');
+  const [isCustomStakeActive, setIsCustomStakeActive] = useState<boolean>(false);
   const [showHowToPlay, setShowHowToPlay] = useState<boolean>(false);
+
+  const chipCarouselRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollChips = (direction: 'left' | 'right') => {
+    if (chipCarouselRef.current) {
+      soundFx.playTap(true);
+      const scrollAmount = direction === 'left' ? -90 : 90;
+      chipCarouselRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const spinIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -700,32 +714,104 @@ export const RouletteStakeModal: React.FC<RouletteStakeModalProps> = ({
             )}
           </div>
 
-          {/* Stake Chip Value Selector */}
+          {/* Stake Chip Value Selector & Custom Input Carousel */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs px-1">
               <span className="font-bold text-slate-300">Select Stake Chip ($ USD)</span>
-              <span className="text-[11px] text-amber-400 font-mono">Current: ${stakeAmount}</span>
+              <div className="flex items-center gap-2">
+                {/* Slide Carousel Chevrons */}
+                <div className="flex items-center gap-0.5 bg-[#141926] p-0.5 rounded-lg border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => scrollChips('left')}
+                    className="p-0.5 rounded text-slate-400 hover:text-amber-300 hover:bg-white/5 transition"
+                    title="Slide left"
+                    aria-label="Slide carousel left"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollChips('right')}
+                    className="p-0.5 rounded text-slate-400 hover:text-amber-300 hover:bg-white/5 transition"
+                    title="Slide right"
+                    aria-label="Slide carousel right"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <span className="text-[11px] text-amber-400 font-mono font-bold">Current: ${stakeAmount}</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-5 gap-1.5">
-              {[1, 2, 5, 10, 25].map((val) => (
-                <button
-                  key={val}
-                  disabled={isLocked}
-                  onClick={() => {
-                    soundFx.playClick();
-                    setStakeAmount(val);
-                    setQuickAmountSelected(val);
-                  }}
-                  className={`py-2 rounded-xl text-xs font-black font-mono transition active:scale-95 border ${
-                    stakeAmount === val
-                      ? 'bg-gradient-to-b from-amber-400 to-amber-600 text-slate-950 border-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.5)]'
+            {/* Slide Carousel Row: Preset Chips + Custom Input Box fitting same line */}
+            <div className="relative w-full">
+              <div
+                ref={chipCarouselRef}
+                className="w-full flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth flex-nowrap py-1 px-0.5"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {[1, 2, 5, 10, 25].map((val) => (
+                  <button
+                    key={val}
+                    type="button"
+                    disabled={isLocked}
+                    onClick={() => {
+                      soundFx.playClick();
+                      setStakeAmount(val);
+                      setQuickAmountSelected(val);
+                      setIsCustomStakeActive(false);
+                      setCustomStakeInput('');
+                    }}
+                    className={`shrink-0 min-w-[46px] sm:min-w-[52px] flex-1 py-2 px-1 rounded-xl text-xs font-black font-mono transition active:scale-95 border text-center ${
+                      !isCustomStakeActive && stakeAmount === val
+                        ? 'bg-gradient-to-b from-amber-400 to-amber-600 text-slate-950 border-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.5)]'
+                        : 'bg-[#141926] text-slate-300 border-white/10 hover:border-amber-400/40'
+                    } disabled:opacity-40`}
+                  >
+                    ${val}
+                  </button>
+                ))}
+
+                {/* Custom Stake Input Box */}
+                <div
+                  className={`shrink-0 min-w-[76px] sm:min-w-[88px] flex-1 py-1 px-2 rounded-xl flex items-center justify-center border transition ${
+                    isCustomStakeActive
+                      ? 'bg-gradient-to-b from-amber-400/20 to-amber-600/30 text-amber-300 border-amber-300 shadow-[0_0_12px_rgba(251,191,36,0.5)] ring-1 ring-amber-400/40'
                       : 'bg-[#141926] text-slate-300 border-white/10 hover:border-amber-400/40'
-                  } disabled:opacity-40`}
+                  } ${isLocked ? 'opacity-40' : ''}`}
                 >
-                  ${val}
-                </button>
-              ))}
+                  <span className="text-xs font-mono font-black text-amber-400 mr-0.5 select-none">$</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="any"
+                    disabled={isLocked}
+                    placeholder="Custom"
+                    value={customStakeInput}
+                    onFocus={(e) => {
+                      e.target.select();
+                      setIsCustomStakeActive(true);
+                      setQuickAmountSelected(-1);
+                      if (!customStakeInput && stakeAmount > 0) {
+                        setCustomStakeInput(stakeAmount.toString());
+                      }
+                    }}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomStakeInput(val);
+                      setIsCustomStakeActive(true);
+                      setQuickAmountSelected(-1);
+                      const num = parseFloat(val);
+                      if (!isNaN(num) && num > 0) {
+                        setStakeAmount(Math.round(num * 100) / 100);
+                      }
+                    }}
+                    className="w-full bg-transparent text-xs font-mono font-black text-amber-200 focus:outline-none placeholder:text-slate-500 text-center"
+                    title="Type custom stake amount"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 

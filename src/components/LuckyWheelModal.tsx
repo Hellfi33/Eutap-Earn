@@ -9,6 +9,7 @@ import {
   WheelSegment,
 } from '../data/spinWheel';
 import { soundFx } from '../utils/audio';
+import { triggerAdLoad } from '../utils/adManager';
 
 interface LuckyWheelModalProps {
   isOpen: boolean;
@@ -63,6 +64,7 @@ export const LuckyWheelModal: React.FC<LuckyWheelModalProps> = ({
   const handleStartSpin = () => {
     if (isSpinning || spinCount <= 0) return;
 
+    triggerAdLoad();
     soundFx.playClick();
     setIsSpinning(true);
     setWonSegment(null);
