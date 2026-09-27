@@ -1606,7 +1606,17 @@ export default function App() {
 
         {activeTab === 'e' && (
           <div className="h-full overflow-y-auto overscroll-contain">
-            <SectionE onBack={() => setActiveTab('exchange')} />
+            <SectionE
+              onBack={() => setActiveTab('exchange')}
+              currentCoins={state.coins}
+              onAddCoins={(amount) => {
+                setState((prev) => ({
+                  ...prev,
+                  coins: prev.coins + amount,
+                  totalEarned: prev.totalEarned + amount,
+                }));
+              }}
+            />
           </div>
         )}
       </main>
