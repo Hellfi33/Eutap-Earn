@@ -38,6 +38,7 @@ import { RouletteStakeModal } from './components/RouletteStakeModal';
 import { PphClaimModal } from './components/PphClaimModal';
 import { MessagesTab } from './components/MessagesTab';
 import { InfoCarouselTab } from './components/InfoCarouselTab';
+import { SectionE } from './components/SectionE';
 import { PlatformMessage, UserProfile } from './types';
 import { UserProfileModal } from './components/UserProfileModal';
 import { loadUserProfile, saveUserProfile } from './utils/userProfile';
@@ -1429,7 +1430,8 @@ export default function App() {
         goldCoinImg={goldCoin}
         userProfile={userProfile}
         onOpenProfileModal={() => setShowProfileModal(true)}
-        onOpenInfo={() => setActiveTab('info')}
+        onOpenE={() => setActiveTab('e')}
+        activeTab={activeTab}
       />
 
       {/* Main Tab Content */}
@@ -1599,6 +1601,12 @@ export default function App() {
               onOpenMine={() => setActiveTab('mine')}
               goldCoinImg={goldCoin}
             />
+          </div>
+        )}
+
+        {activeTab === 'e' && (
+          <div className="h-full overflow-y-auto overscroll-contain">
+            <SectionE onBack={() => setActiveTab('exchange')} />
           </div>
         )}
       </main>

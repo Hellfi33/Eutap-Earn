@@ -2,7 +2,7 @@ import React from 'react';
 import { Pickaxe, Users, CircleDollarSign, MessageSquare } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
-export type TabType = 'exchange' | 'mine' | 'friends' | 'earn' | 'info' | 'messages' | 'airdrop';
+export type TabType = 'exchange' | 'mine' | 'friends' | 'earn' | 'info' | 'messages' | 'airdrop' | 'e';
 
 interface BottomNavProps {
   activeTab: TabType;
