@@ -53,6 +53,8 @@ import { BoostModal } from './components/BoostModal';
 import { ConnectWalletModal } from './components/ConnectWalletModal';
 import { TierModal } from './components/TierModal';
 import { SettingsModal } from './components/SettingsModal';
+import { useNetworkStatus } from './utils/useNetworkStatus';
+import { OfflineGate } from './components/OfflineGate';
 
 // Secret Morse Code & Stage Modals
 import { MorseTerminalModal } from './components/MorseTerminalModal';
@@ -70,6 +72,10 @@ export default function App() {
   const [state, setState] = useState<GameState>(() => loadGameState());
   const [activeTab, setActiveTab] = useState<TabType>('exchange');
   const [floatingNumbers, setFloatingNumbers] = useState<FloatingTapNumber[]>([]);
+
+  // Strict Online Network Connectivity Monitoring
+  const { isOnline, isChecking, checkConnection } = useNetworkStatus();
+  const prevOnlineRef = useRef<boolean>(true);
 
   // Modals
   const [showDailyReward, setShowDailyReward] = useState(false);
@@ -212,6 +218,19 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [morseToastMessage]);
 
+  // Online/Offline network transition handler
+  useEffect(() => {
+    if (!prevOnlineRef.current && isOnline) {
+      soundFx.playReward();
+      soundFx.triggerHaptic(25);
+      setMorseToastMessage('🌐 Connection restored! Synchronized with network.');
+    } else if (prevOnlineRef.current && !isOnline) {
+      soundFx.triggerHaptic(40);
+      setIsAutoTapping(false);
+    }
+    prevOnlineRef.current = isOnline;
+  }, [isOnline]);
+
   // Periodic check for Wheel of Fortune (24h) and Lay & Hatch (7h) lock expirations
   useEffect(() => {
     const checkTimer = () => {
@@ -332,11 +351,11 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // AUTO-TAP STREAM ENGINE (Triggered via secret code AA**, stopped via SP**):
+  // AUTO-TAP STREAM ENGINE (Triggered via secret code APR**T, stopped via SP**):
   // When active, continuously increments point balance automatically by the player's tap rate
   // exactly as if user is tapping. It stays active until player stops it.
   useEffect(() => {
-    if (!isAutoTapping) return;
+    if (!isAutoTapping || !isOnline) return;
 
     const interval = setInterval(() => {
       setState((prev) => {
@@ -482,7 +501,7 @@ export default function App() {
   // - The attached section reduces according to the tap rate booster (+1, +5 depending).
   // - Tap speed, deduction speed and point balance topup reflect instantaneously in the exact same state transaction.
   const handleMultiTap = (touches: { clientX: number; clientY: number }[]) => {
-    if (touches.length === 0) return;
+    if (!isOnline || touches.length === 0) return;
     lastTapTimeRef.current = Date.now();
 
     setState((prev) => {
@@ -622,7 +641,7 @@ export default function App() {
       if (prev.totalTaps < quest.targetTaps) return prev;
 
       const addCoins = quest.rewards.points || 0;
-      const addReserve = quest.rewards.reserve || 0;
+      const addReserve = prev.tapLevel >= 7 ? (quest.rewards.reserve || 0) : 0;
       const addDiamonds = quest.rewards.diamonds || 0;
       const addKeys = quest.rewards.keys || 0;
 
@@ -638,7 +657,7 @@ export default function App() {
     });
 
     const rewardParts: string[] = [];
-    if (quest.rewards.reserve) rewardParts.push(`+$${quest.rewards.reserve}.00 Reserve`);
+    if (quest.rewards.reserve && state.tapLevel >= 7) rewardParts.push(`+$${quest.rewards.reserve}.00 Reserve`);
     if (quest.rewards.diamonds) rewardParts.push(`+${quest.rewards.diamonds} Diamonds`);
     if (quest.rewards.keys) rewardParts.push(`+${quest.rewards.keys} Keys`);
     if (quest.rewards.points) rewardParts.push(`+${quest.rewards.points.toLocaleString()} Points`);
@@ -737,6 +756,7 @@ export default function App() {
           totalEarned: prev.totalEarned + amount,
         };
       } else if (resource === 'reserve') {
+        if (prev.tapLevel < 7) return prev;
         return {
           ...prev,
           reserveBalance: prev.reserveBalance + amount,
@@ -1278,7 +1298,9 @@ export default function App() {
       } else if (reward.type === 'key') {
         newKeys += reward.amount;
       } else if (reward.type === 'reserve') {
-        newReserve += reward.amount;
+        if (prev.tapLevel >= 7) {
+          newReserve += reward.amount;
+        }
       } else if (reward.type === 'extra_spin') {
         newLuckySpins += reward.amount;
       }
@@ -1432,6 +1454,7 @@ export default function App() {
         onOpenProfileModal={() => setShowProfileModal(true)}
         onOpenE={() => setActiveTab('e')}
         activeTab={activeTab}
+        isOnline={isOnline}
       />
 
       {/* Main Tab Content */}
@@ -1784,6 +1807,7 @@ export default function App() {
           onClose={() => setShowLuckyChanceModal(false)}
           spinsRemaining={state.luckyChanceSpins ?? 6}
           nextRefillTime={state.luckyChanceNextRefillTime ?? 0}
+          playerLevel={state.tapLevel}
           onSpinStart={handleLuckyChanceSpinStart}
           onWinReward={handleLuckyChanceReward}
         />
@@ -1914,6 +1938,14 @@ export default function App() {
           playerLevel={state.tapLevel}
           playerStage={state.stage || 1}
           totalEarned={state.totalEarned}
+        />
+      )}
+
+      {/* Strict Online Requirement - Full Screen Blocker when Offline */}
+      {!isOnline && (
+        <OfflineGate
+          isChecking={isChecking}
+          onRetry={checkConnection}
         />
       )}
     </div>

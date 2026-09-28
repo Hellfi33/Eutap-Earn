@@ -20,6 +20,7 @@ interface HeaderProps {
   onOpenProfileModal?: () => void;
   onOpenE?: () => void;
   activeTab?: string;
+  isOnline?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,6 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenProfileModal,
   onOpenE,
   activeTab,
+  isOnline = true,
 }) => {
   const currentTier = getTierByCoins(totalEarned, stage);
   const isStage2 = stage === 2;
@@ -184,6 +186,23 @@ export const Header: React.FC<HeaderProps> = ({
             E
           </span>
         </button>
+
+        {/* Live Online Status Indicator */}
+        <div
+          className={`flex items-center gap-1 py-1 px-1.5 rounded-lg sm:rounded-xl border text-[8px] sm:text-[9px] font-mono font-bold tracking-tight shrink-0 transition ${
+            isOnline
+              ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+              : 'bg-rose-950/50 border-rose-500/50 text-rose-300 animate-pulse'
+          }`}
+          title={isOnline ? 'Online: Real-time network sync active' : 'Offline: Internet connection required'}
+        >
+          <span
+            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+              isOnline ? 'bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]' : 'bg-rose-500'
+            }`}
+          />
+          <span className="hidden md:inline">{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
+        </div>
 
         <button
           id="header-settings-btn"

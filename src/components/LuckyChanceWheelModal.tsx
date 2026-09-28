@@ -15,6 +15,7 @@ interface LuckyChanceWheelModalProps {
   onClose: () => void;
   spinsRemaining: number;
   nextRefillTime: number;
+  playerLevel?: number;
   onSpinStart: () => void;
   onWinReward: (reward: LuckyChanceReward) => void;
 }
@@ -58,6 +59,7 @@ export const LuckyChanceWheelModal: React.FC<LuckyChanceWheelModalProps> = ({
   onClose,
   spinsRemaining,
   nextRefillTime,
+  playerLevel,
   onSpinStart,
   onWinReward,
 }) => {
@@ -94,7 +96,10 @@ export const LuckyChanceWheelModal: React.FC<LuckyChanceWheelModalProps> = ({
 
     // Weighted random selection among eligible (canWin === true) segments.
     // 100 Keys and $20 have canWin: false, so player will never win them.
-    const eligibleSegments = FIFTEEN_SEGMENTS.filter((s) => s.canWin);
+    // Earning $ (reserve) is enabled from level 7
+    const eligibleSegments = FIFTEEN_SEGMENTS.filter(
+      (s) => s.canWin && (s.type !== 'reserve' || (playerLevel ?? 0) >= 7)
+    );
     const totalWeight = eligibleSegments.reduce((sum, s) => sum + s.weight, 0);
     let randomVal = Math.random() * totalWeight;
     let winningSegment = eligibleSegments[0];

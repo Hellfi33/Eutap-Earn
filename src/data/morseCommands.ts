@@ -12,7 +12,7 @@ export type MorseCommandId =
 export interface MorseCommand {
   id: MorseCommandId;
   title: string;
-  code: string; // Exact command code: AA**, SP**, WD**, DMD**, DBT*, S***, LVP****, NTG*
+  code: string; // Exact command code: APR**T, SP**, WD**, DMD**, DBT*, S***, LVP****, NTG*
   compactCode: string;
   aliases: string[];
   description: string;
@@ -22,9 +22,9 @@ export const MORSE_COMMANDS: MorseCommand[] = [
   {
     id: 'auto_tap',
     title: 'Auto tap',
-    code: 'AA**',
-    compactCode: 'AA**',
-    aliases: ['AA**', 'AA--', 'AA++', 'AUTOTAP', 'AUTO TAP'],
+    code: 'APR**T',
+    compactCode: 'APR**T',
+    aliases: ['APR**T', 'APR--T', 'APR++T'],
     description: 'Execute auto tap for player which instantly gets added to balance as if user is tapping.',
   },
   {
