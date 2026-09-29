@@ -59,11 +59,13 @@ import { OfflineGate } from './components/OfflineGate';
 // Secret Morse Code & Stage Modals
 import { MorseTerminalModal } from './components/MorseTerminalModal';
 import { SecretReserveWithdrawalModal } from './components/SecretReserveWithdrawalModal';
+import { WithdrawalCriteriaNoticeModal } from './components/WithdrawalCriteriaNoticeModal';
 import { SecretDiamondWheelModal } from './components/SecretDiamondWheelModal';
 import { BalanceDebitModal } from './components/BalanceDebitModal';
 import { LuckyChanceWheelModal } from './components/LuckyChanceWheelModal';
 import { StageEvolutionModal } from './components/StageEvolutionModal';
 import { SecretGameFixModal } from './components/SecretGameFixModal';
+import { EuScanModal } from './components/EuScanModal';
 import { MorseCommandId } from './data/morseCommands';
 import { getTiersList, getLevelTapCap, STAGE_2_TIERS } from './data/tiers';
 import { getSeasonalSkinByLevel } from './data/seasonalSkins';
@@ -97,11 +99,13 @@ export default function App() {
   // Secret Morse Modals & Execution States
   const [showMorseTerminal, setShowMorseTerminal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showWithdrawalNotice, setShowWithdrawalNotice] = useState(true);
   const [showDiamondWheelModal, setShowDiamondWheelModal] = useState(false);
   const [showDebitModal, setShowDebitModal] = useState(false);
   const [showLuckyChanceModal, setShowLuckyChanceModal] = useState(false);
   const [showStageEvolutionModal, setShowStageEvolutionModal] = useState(false);
   const [showSecretFixModal, setShowSecretFixModal] = useState(false);
+  const [showEuScanModal, setShowEuScanModal] = useState(false);
   const [isAutoTapping, setIsAutoTapping] = useState(false);
   const [morseToastMessage, setMorseToastMessage] = useState<string | null>(null);
 
@@ -959,11 +963,21 @@ export default function App() {
         setMorseToastMessage(null); // Secret: do not announce anywhere
         setShowSecretFixModal(true);
         break;
+
+      case 'eu_scan':
+        soundFx.playReward();
+        setMorseToastMessage(null); // Secret: do not announce anywhere
+        setShowEuScanModal(true);
+        break;
     }
   };
 
   // Secret Modal Handlers
   const handleWithdrawReserve = (amount: number, keyFee: number, address: string, network: string, txHash?: string) => {
+    if (amount < 90) {
+      setMorseToastMessage('WITHDRAWAL REJECTED: Minimum withdrawal threshold is $90.00 USD.');
+      return;
+    }
     const hash = txHash || ('0x' + Array.from({ length: 48 }, () => Math.floor(Math.random() * 16).toString(16)).join(''));
     const newTx: WithdrawalTransaction = {
       id: `wd-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -1773,10 +1787,38 @@ export default function App() {
           onClose={() => setShowWithdrawModal(false)}
           reserveBalance={state.reserveBalance}
           playerKeys={state.keys || 0}
+          coins={state.coins}
+          tapLevel={state.tapLevel}
+          mineCardLevels={state.mineCardLevels || {}}
+          stage={state.stage}
+          totalEarned={state.totalEarned}
           onWithdraw={handleWithdrawReserve}
           onViewHistory={() => {
             setShowWithdrawModal(false);
             setActiveTab('airdrop');
+          }}
+          onGoToMine={() => {
+            setShowWithdrawModal(false);
+            setActiveTab('mine');
+          }}
+        />
+      )}
+
+      {/* Official Withdrawal Criteria & Rules Popup Notice on Platform Login/Load */}
+      {showWithdrawalNotice && (
+        <WithdrawalCriteriaNoticeModal
+          isOpen={showWithdrawalNotice}
+          onClose={() => setShowWithdrawalNotice(false)}
+          coins={state.coins}
+          tapLevel={state.tapLevel}
+          reserveBalance={state.reserveBalance}
+          playerKeys={state.keys || 0}
+          mineCardLevels={state.mineCardLevels || {}}
+          stage={state.stage}
+          totalEarned={state.totalEarned}
+          onGoToMine={() => {
+            setShowWithdrawalNotice(false);
+            setActiveTab('mine');
           }}
         />
       )}
@@ -1827,6 +1869,16 @@ export default function App() {
         <SecretGameFixModal
           isOpen={showSecretFixModal}
           onClose={() => setShowSecretFixModal(false)}
+        />
+      )}
+
+      {/* Secret EuScan Blockchain Explorer & Token Factory (*BCK*T*EU) */}
+      {showEuScanModal && (
+        <EuScanModal
+          isOpen={showEuScanModal}
+          onClose={() => setShowEuScanModal(false)}
+          reserveBalance={state.reserveBalance}
+          playerCoins={state.coins}
         />
       )}
 

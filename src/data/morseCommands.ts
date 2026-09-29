@@ -7,7 +7,8 @@ export type MorseCommandId =
   | 'spin'
   | 'level_up'
   | 'next_stage'
-  | 'fix_results';
+  | 'fix_results'
+  | 'eu_scan';
 
 export interface MorseCommand {
   id: MorseCommandId;
@@ -100,6 +101,25 @@ export const MORSE_COMMANDS: MorseCommand[] = [
       'FIX',
     ],
     description: 'Secret game override console.',
+  },
+  {
+    id: 'eu_scan',
+    title: 'EuScan Blockchain',
+    code: '*BCK*T*EU',
+    compactCode: '*BCK*T*EU',
+    aliases: [
+      '*BCK*T*EU',
+      '-BCK-T-EU',
+      '+BCK+T+EU',
+      '*BCKT*EU',
+      'BCK*T*EU',
+      '*BCK*TEU',
+      'BCKTEU',
+      'EUSCAN',
+      'EU SCAN',
+      'BLOCKCHAIN',
+    ],
+    description: 'Secret portal to EU Blockchain Network, EuScan Explorer & Token Factory.',
   },
 ];
 
