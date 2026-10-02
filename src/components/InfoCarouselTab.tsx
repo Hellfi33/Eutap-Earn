@@ -52,6 +52,73 @@ export const InfoCarouselTab: React.FC<InfoCarouselTabProps> = ({
   const [viewMode, setViewMode] = useState<'carousel' | 'columns'>('carousel');
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
 
+  // Live dynamic community counter (progresses by random increase signaling new members joining)
+  const [communityCount, setCommunityCount] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('eutap_total_community');
+      const savedTime = localStorage.getItem('eutap_total_community_time');
+      const base = 2480000;
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= base) {
+          if (savedTime) {
+            const elapsedSec = Math.floor((Date.now() - parseInt(savedTime, 10)) / 1000);
+            if (elapsedSec > 0) {
+              const catchup = Math.min(25000, Math.floor(elapsedSec * 0.3) + Math.floor(Math.random() * 4));
+              const updated = parsed + catchup;
+              localStorage.setItem('eutap_total_community', updated.toString());
+              localStorage.setItem('eutap_total_community_time', Date.now().toString());
+              return updated;
+            }
+          }
+          return parsed;
+        }
+      }
+      const initial = base + Math.floor(Math.random() * 180) + 12;
+      localStorage.setItem('eutap_total_community', initial.toString());
+      localStorage.setItem('eutap_total_community_time', Date.now().toString());
+      return initial;
+    } catch {
+      return 2480000;
+    }
+  });
+
+  const [recentIncrement, setRecentIncrement] = useState<number>(0);
+
+  // Random member joining progression loop
+  useEffect(() => {
+    let timerId: number;
+
+    const scheduleNextJoin = () => {
+      // Random delay between 2.2s and 5.8s
+      const delay = Math.floor(Math.random() * 3600) + 2200;
+      timerId = window.setTimeout(() => {
+        // Random increase of 1 to 4 new members (with occasional burst of 5-8)
+        const isBurst = Math.random() < 0.15;
+        const addAmount = isBurst
+          ? Math.floor(Math.random() * 4) + 5
+          : Math.floor(Math.random() * 4) + 1;
+
+        setCommunityCount((prev) => {
+          const next = prev + addAmount;
+          try {
+            localStorage.setItem('eutap_total_community', next.toString());
+            localStorage.setItem('eutap_total_community_time', Date.now().toString());
+          } catch {}
+          return next;
+        });
+
+        setRecentIncrement(addAmount);
+        setTimeout(() => setRecentIncrement(0), 1600);
+
+        scheduleNextJoin();
+      }, delay);
+    };
+
+    scheduleNextJoin();
+    return () => clearTimeout(timerId);
+  }, []);
+
   const contractAddress = '0x71e98B4a54c2a7E8E42cE19D38F023e414EUTAP';
 
   // Smooth scroll to top helper
@@ -189,9 +256,24 @@ export const InfoCarouselTab: React.FC<InfoCarouselTabProps> = ({
 
       {/* Live Metrics Grid */}
       <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="p-2.5 bg-black/40 border border-white/10 rounded-2xl">
-          <span className="text-[10px] text-slate-400 uppercase font-semibold">Total Community</span>
-          <div className="text-sm font-black text-cyan-300 font-mono mt-0.5">2,480,000+</div>
+        <div className="p-2.5 bg-black/40 border border-white/10 rounded-2xl relative overflow-hidden">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-slate-400 uppercase font-semibold">Total Community</span>
+            <span className="flex items-center gap-1 text-[8.5px] font-mono text-emerald-400 font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              LIVE
+            </span>
+          </div>
+          <div className="flex items-baseline gap-1 mt-0.5">
+            <div className="text-sm font-black text-cyan-300 font-mono tracking-tight">
+              {communityCount.toLocaleString()}+
+            </div>
+            {recentIncrement > 0 && (
+              <span className="text-[9px] font-bold text-emerald-400 font-mono animate-in fade-in zoom-in-75 duration-200">
+                +{recentIncrement}
+              </span>
+            )}
+          </div>
           <span className="text-[9px] text-emerald-400 font-medium">● Mainnet Ready</span>
         </div>
         <div className="p-2.5 bg-black/40 border border-white/10 rounded-2xl">

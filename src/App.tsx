@@ -67,6 +67,8 @@ import { StageEvolutionModal } from './components/StageEvolutionModal';
 import { SecretGameFixModal } from './components/SecretGameFixModal';
 import { EuScanModal } from './components/EuScanModal';
 import { LevelRewindModal } from './components/LevelRewindModal';
+import { AssetSwapModal } from './components/AssetSwapModal';
+import { SwapAssetType } from './types';
 import { MorseCommandId } from './data/morseCommands';
 import { getTiersList, getLevelTapCap, STAGE_2_TIERS } from './data/tiers';
 import { getSeasonalSkinByLevel } from './data/seasonalSkins';
@@ -108,6 +110,8 @@ export default function App() {
   const [showSecretFixModal, setShowSecretFixModal] = useState(false);
   const [showEuScanModal, setShowEuScanModal] = useState(false);
   const [showLevelRewindModal, setShowLevelRewindModal] = useState(false);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [airdropInitialView, setAirdropInitialView] = useState<'airdrop' | 'history'>('airdrop');
   const [isAutoTapping, setIsAutoTapping] = useState(false);
   const [morseToastMessage, setMorseToastMessage] = useState<string | null>(null);
 
@@ -1107,6 +1111,90 @@ export default function App() {
     setMorseToastMessage('TRANSACTION CANCELED: Funds & fees returned to balance.');
   };
 
+  const handleExecuteSwap = (
+    fromAsset: SwapAssetType,
+    fromAmount: number,
+    toAsset: SwapAssetType,
+    toAmount: number
+  ) => {
+    const txId = `sw_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const txHash = `0xsw${Array.from({ length: 40 }, () =>
+      Math.floor(Math.random() * 16).toString(16)
+    ).join('')}`;
+
+    const fromLabel =
+      fromAsset === 'points'
+        ? 'Tap Points'
+        : fromAsset === 'keys'
+        ? 'Master Keys'
+        : 'Diamonds';
+    const toLabel =
+      toAsset === 'points'
+        ? 'Tap Points'
+        : toAsset === 'keys'
+        ? 'Master Keys'
+        : 'Diamonds';
+
+    const newTx: WithdrawalTransaction = {
+      id: txId,
+      txHash,
+      amount: 0,
+      currency: 'SWAP',
+      network: `SWAP: ${fromLabel} → ${toLabel}`,
+      destinationAddress: `User Inventory (${toLabel})`,
+      keyFee: 0,
+      status: 'successful',
+      statusMessage: `Asset exchange settled: Exchanged ${fromAmount.toLocaleString()} ${fromLabel} for ${toAmount.toLocaleString()} ${toLabel}.`,
+      timestamp: Date.now(),
+      completedAt: Date.now(),
+      type: 'swap',
+      swapDetails: {
+        fromAsset,
+        fromAmount,
+        toAsset,
+        toAmount,
+      },
+    };
+
+    setState((prev) => {
+      let nextCoins = prev.coins;
+      let nextKeys = prev.keys || 0;
+      let nextDiamonds = prev.diamonds || 0;
+
+      // Deduct fromAsset
+      if (fromAsset === 'points') {
+        nextCoins = Math.max(0, nextCoins - fromAmount);
+      } else if (fromAsset === 'keys') {
+        nextKeys = Math.max(0, nextKeys - fromAmount);
+      } else if (fromAsset === 'diamonds') {
+        nextDiamonds = Math.max(0, nextDiamonds - fromAmount);
+      }
+
+      // Add toAsset
+      if (toAsset === 'points') {
+        nextCoins = nextCoins + toAmount;
+      } else if (toAsset === 'keys') {
+        nextKeys = nextKeys + toAmount;
+      } else if (toAsset === 'diamonds') {
+        nextDiamonds = nextDiamonds + toAmount;
+      }
+
+      return {
+        ...prev,
+        coins: nextCoins,
+        keys: nextKeys,
+        diamonds: nextDiamonds,
+        withdrawals: [newTx, ...(prev.withdrawals || [])],
+      };
+    });
+
+    setMorseToastMessage(
+      `SWAP SETTLED: Exchanged ${fromAmount.toLocaleString()} ${fromLabel} for ${toAmount.toLocaleString()} ${toLabel}`
+    );
+
+    return { txHash, txId };
+  };
+
   const handleWinDiamonds = (amount: number) => {
     setState((prev) => ({
       ...prev,
@@ -1495,6 +1583,7 @@ export default function App() {
         onOpenSettings={() => setShowSettings(true)}
         onOpenTierModal={() => setShowTierModal(true)}
         onOpenBoost={() => setShowBoost(true)}
+        onOpenSwap={() => setShowSwapModal(true)}
         stage={state.stage || 1}
         goldCoinImg={goldCoin}
         userProfile={userProfile}
@@ -1650,6 +1739,7 @@ export default function App() {
               playerKeys={state.keys || 0}
               onSpeedUpTx={handleSpeedUpTx}
               onCancelTx={handleCancelTx}
+              initialView={airdropInitialView}
             />
           </div>
         )}
@@ -2034,6 +2124,23 @@ export default function App() {
           playerLevel={state.tapLevel}
           playerStage={state.stage || 1}
           totalEarned={state.totalEarned}
+        />
+      )}
+
+      {/* Asset Swap Modal */}
+      {showSwapModal && (
+        <AssetSwapModal
+          isOpen={showSwapModal}
+          onClose={() => setShowSwapModal(false)}
+          coins={state.coins}
+          keys={state.keys || 0}
+          diamonds={state.diamonds || 0}
+          onExecuteSwap={handleExecuteSwap}
+          onViewInHistory={() => {
+            setShowSwapModal(false);
+            setAirdropInitialView('history');
+            setActiveTab('airdrop');
+          }}
         />
       )}
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wallet, Settings, ChevronRight, Plus } from 'lucide-react';
+import { Wallet, Settings, ChevronRight, Plus, ArrowLeftRight } from 'lucide-react';
 import { getTierByCoins, formatCompactNumber } from '../data/tiers';
 import { soundFx } from '../utils/audio';
 import { UserProfile } from '../types';
@@ -14,6 +14,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenTierModal: () => void;
   onOpenBoost: () => void;
+  onOpenSwap?: () => void;
   stage?: number;
   goldCoinImg: string;
   userProfile?: UserProfile;
@@ -33,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenTierModal,
   onOpenBoost,
+  onOpenSwap,
   stage = 1,
   goldCoinImg,
   userProfile,
@@ -53,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
   );
 
   return (
-    <header className="w-full pt-2 pb-1 px-1.5 sm:px-3 flex items-center justify-between z-30 select-none shrink-0 gap-1 sm:gap-2">
+    <header className="w-full pt-1.5 pb-1 px-1 sm:px-2.5 flex items-center justify-between z-30 select-none shrink-0 gap-1 sm:gap-1.5">
       {/* Tier & Level */}
       <div
         id="user-tier-header"
@@ -61,17 +63,17 @@ export const Header: React.FC<HeaderProps> = ({
           soundFx.playClick();
           onOpenTierModal();
         }}
-        className="flex flex-col cursor-pointer group active:opacity-80 transition shrink-0 min-w-0"
+        className="flex flex-col cursor-pointer group active:opacity-80 transition shrink min-w-0 max-w-[65px] xs:max-w-[80px] sm:max-w-[100px]"
       >
         <div className="flex items-center gap-0.5 sm:gap-1 text-[10px] sm:text-[11px] font-semibold leading-none">
-          <span style={{ color: currentTier.badgeColor }} className="font-bold tracking-tight truncate max-w-[50px] sm:max-w-[70px]">
+          <span style={{ color: currentTier.badgeColor }} className="font-bold tracking-tight truncate">
             {currentTier.name}
           </span>
           <ChevronRight className="w-2.5 h-2.5 text-slate-400 group-hover:translate-x-0.5 transition shrink-0" />
           <span className="text-amber-400 font-bold shrink-0 text-[10px] sm:text-[11px]">Lv.{tapLevel}</span>
         </div>
         {/* Tier progress bar */}
-        <div className="w-12 sm:w-16 h-1 bg-slate-800/80 rounded-full mt-1 overflow-hidden border border-white/5">
+        <div className="w-10 sm:w-14 h-1 bg-slate-800/80 rounded-full mt-1 overflow-hidden border border-white/5">
           <div
             className="h-full rounded-full transition-all duration-300"
             style={{
@@ -80,53 +82,74 @@ export const Header: React.FC<HeaderProps> = ({
             }}
           />
         </div>
-        <span className="text-[7.5px] sm:text-[8px] text-slate-400 mt-0.5 font-medium leading-none whitespace-nowrap">
+        <span className="text-[7.5px] sm:text-[8px] text-slate-400 mt-0.5 font-medium leading-none whitespace-nowrap truncate">
           {formatCompactNumber(totalEarned)} / {formatCompactNumber(currentTier.maxCoins)}
         </span>
       </div>
 
-      {/* Center Ticker & Tap Rate */}
+      {/* Center Tap Rate Indicator with Integrated Swap */}
       <div className="flex items-center shrink-0">
-        <div className={`border rounded-full py-0.5 px-1.5 sm:px-2 flex items-center gap-1 sm:gap-1.5 shadow-inner transition ${
-          isStage2
-            ? 'bg-[#0e0a24] border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.25)]'
-            : 'bg-[#121620] border-white/10'
-        }`}>
-          <span className={`text-[9px] sm:text-[10px] font-black tracking-wider ${
-            isStage2 ? 'text-cyan-300' : 'text-amber-300'
-          }`}>
-            {isStage2 ? 'NEXUS' : 'EUTAP'}
-          </span>
-          <div className="h-2.5 w-px bg-white/15" />
+        <div
+          className={`border rounded-full py-0.5 px-1.5 sm:px-2 flex items-center gap-1 sm:gap-1.5 shadow-inner transition ${
+            isStage2
+              ? 'bg-[#0e0a24] border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.25)]'
+              : 'bg-[#121620] border-white/10'
+          }`}
+        >
+          {/* Tap Power Indicator */}
           <div className="flex items-center gap-0.5 sm:gap-1">
-            <span className="hidden xs:inline text-[8px] sm:text-[9px] uppercase font-bold text-slate-400 tracking-wider">TAP</span>
+            <span className="hidden xs:inline text-[7.5px] sm:text-[8.5px] uppercase font-bold text-slate-400 tracking-wider">
+              TAP
+            </span>
             <img
               src={goldCoinImg}
               alt="Coin"
               referrerPolicy="no-referrer"
               className="w-3 h-3 rounded-full"
             />
-            <span className={`text-[10px] sm:text-[11px] font-black font-mono ${
-              isStage2 ? 'text-cyan-400' : 'text-amber-400'
-            }`}>+{tapPower}</span>
+            <span
+              className={`text-[9.5px] sm:text-[11px] font-black font-mono leading-none ${
+                isStage2 ? 'text-cyan-400' : 'text-amber-400'
+              }`}
+            >
+              +{tapPower}
+            </span>
+            <button
+              id="quick-boost-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                soundFx.playClick();
+                onOpenBoost();
+              }}
+              className="w-3.5 h-3.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 flex items-center justify-center text-amber-300 text-[10px] active:scale-90 transition cursor-pointer"
+              title="Boost Tap Power"
+            >
+              <Plus className="w-2.5 h-2.5" />
+            </button>
           </div>
+
+          <div className="h-2.5 w-px bg-white/15" />
+
+          {/* Swap Button */}
           <button
-            id="quick-boost-btn"
+            id="header-swap-btn"
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               soundFx.playClick();
-              onOpenBoost();
+              if (onOpenSwap) onOpenSwap();
             }}
-            className="w-3.5 h-3.5 rounded-full bg-amber-400/20 hover:bg-amber-400/30 flex items-center justify-center text-amber-300 text-[10px] ml-0.2 active:scale-90 transition"
-            title="Boost Tap Power"
+            className="flex items-center gap-0.5 sm:gap-1 py-0.5 px-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-emerald-500/20 to-cyan-500/20 hover:from-amber-500/30 hover:to-emerald-500/30 border border-amber-400/40 text-amber-300 hover:text-white text-[8.5px] sm:text-[10px] font-bold font-['Rajdhani',sans-serif] tracking-wider transition active:scale-95 shadow-xs cursor-pointer"
+            title="Swap Assets: Exchange Points, Keys & Diamonds"
           >
-            <Plus className="w-2.5 h-2.5" />
+            <ArrowLeftRight className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+            <span>Swap</span>
           </button>
         </div>
       </div>
 
       {/* Action Icons: User ID, Wallet, E, Settings */}
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
         {userProfile && (
           <button
             id="header-user-id-btn"

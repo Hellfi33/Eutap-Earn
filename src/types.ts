@@ -19,18 +19,29 @@ export interface Task {
 
 export type WithdrawalStatus = 'successful' | 'pending' | 'failed';
 
+export type SwapAssetType = 'points' | 'keys' | 'diamonds';
+
+export interface SwapDetails {
+  fromAsset: SwapAssetType;
+  fromAmount: number;
+  toAsset: SwapAssetType;
+  toAmount: number;
+}
+
 export interface WithdrawalTransaction {
   id: string;
   txHash: string;
-  amount: number; // in USD
-  currency: string; // e.g. 'USDT', 'TON', 'SOL', 'BTC'
-  network: string; // e.g. 'USDT (TRC-20)'
+  amount: number; // in USD (0 for asset swaps)
+  currency: string; // e.g. 'USDT', 'TON', 'SOL', 'BTC', or 'SWAP'
+  network: string; // e.g. 'USDT (TRC-20)' or 'SWAP: POINTS → KEYS'
   destinationAddress: string;
   keyFee: number;
   status: WithdrawalStatus;
   statusMessage?: string;
   timestamp: number; // ms timestamp
   completedAt?: number;
+  type?: 'withdrawal' | 'swap';
+  swapDetails?: SwapDetails;
 }
 
 export interface TapQuestReward {

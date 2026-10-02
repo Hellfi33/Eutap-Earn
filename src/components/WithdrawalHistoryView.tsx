@@ -16,6 +16,8 @@ import {
   Filter,
   Sparkles,
   Zap,
+  ArrowRight,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { WithdrawalTransaction, WithdrawalStatus } from '../types';
 import { soundFx } from '../utils/audio';
@@ -46,7 +48,12 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
   const failedCount = withdrawals.filter((w) => w.status === 'failed').length;
 
   const totalWithdrawnAmount = withdrawals
-    .filter((w) => w.status === 'successful')
+    .filter(
+      (w) =>
+        w.status === 'successful' &&
+        w.currency !== 'SWAP' &&
+        (!w.type || w.type === 'withdrawal')
+    )
     .reduce((sum, w) => sum + (w.amount || 0), 0);
 
   const filteredWithdrawals = withdrawals.filter((tx) => {
@@ -262,6 +269,21 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
             const isSuccess = tx.status === 'successful';
             const isPending = tx.status === 'pending';
             const isFailed = tx.status === 'failed';
+            const isSwap = tx.type === 'swap' || tx.currency === 'SWAP' || Boolean(tx.swapDetails);
+
+            const getAssetIcon = (asset?: string) => {
+              if (asset === 'points') return '₮';
+              if (asset === 'keys') return '🔑';
+              if (asset === 'diamonds') return '💎';
+              return '';
+            };
+
+            const getAssetName = (asset?: string) => {
+              if (asset === 'points') return 'Tap Points';
+              if (asset === 'keys') return 'Master Keys';
+              if (asset === 'diamonds') return 'Diamonds';
+              return asset || '';
+            };
 
             return (
               <div
@@ -277,7 +299,14 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
               >
                 {/* Transaction Header: Status & Timestamp */}
                 <div className="flex items-center justify-between gap-2 mb-2.5 pb-2.5 border-b border-white/5">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {isSwap && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 uppercase tracking-wide">
+                        <ArrowLeftRight className="w-2.5 h-2.5 text-cyan-400" />
+                        ASSET SWAP
+                      </span>
+                    )}
+
                     {isSuccess && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 uppercase tracking-wide">
                         <CheckCircle2 className="w-3 h-3 text-emerald-400" />
@@ -302,32 +331,60 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
                     </span>
                   </div>
 
-                  <span className="text-[10px] text-slate-400 font-mono">
+                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
                     {formatDate(tx.timestamp)}
                   </span>
                 </div>
 
                 {/* Amount, Network and Fee */}
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Amount</span>
-                    <span
-                      className={`text-lg font-black font-mono tracking-tight ${
-                        isSuccess ? 'text-emerald-400' : isPending ? 'text-amber-300' : 'text-rose-400'
-                      }`}
-                    >
-                      -${tx.amount.toFixed(2)} USD
-                    </span>
-                  </div>
+                {isSwap && tx.swapDetails ? (
+                  <div className="flex items-center justify-between mb-3 bg-[#0f141f] p-2.5 rounded-xl border border-white/5">
+                    <div>
+                      <span className="text-[9px] uppercase font-bold text-slate-400 block">
+                        Exchanged & Received
+                      </span>
+                      <div className="flex items-center gap-1.5 text-sm sm:text-base font-black font-mono tracking-tight mt-0.5">
+                        <span className="text-amber-400">
+                          -{tx.swapDetails.fromAmount.toLocaleString()} {getAssetIcon(tx.swapDetails.fromAsset)}
+                        </span>
+                        <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="text-emerald-400">
+                          +{tx.swapDetails.toAmount.toLocaleString()} {getAssetIcon(tx.swapDetails.toAsset)}
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className="text-right">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Network Fee</span>
-                    <div className="flex items-center gap-1 text-xs font-bold text-amber-400 font-mono justify-end">
-                      <Key className="w-3 h-3 text-amber-400" />
-                      <span>-{tx.keyFee.toLocaleString()} Keys</span>
+                    <div className="text-right">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 block">
+                        Settlement
+                      </span>
+                      <span className="text-xs font-bold text-emerald-400 font-mono">
+                        Instant (0 Fee)
+                      </span>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Amount</span>
+                      <span
+                        className={`text-lg font-black font-mono tracking-tight ${
+                          isSuccess ? 'text-emerald-400' : isPending ? 'text-amber-300' : 'text-rose-400'
+                        }`}
+                      >
+                        -${tx.amount.toFixed(2)} USD
+                      </span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Network Fee</span>
+                      <div className="flex items-center gap-1 text-xs font-bold text-amber-400 font-mono justify-end">
+                        <Key className="w-3 h-3 text-amber-400" />
+                        <span>-{tx.keyFee.toLocaleString()} Keys</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Details Box: Destination & TxHash */}
                 <div className="bg-[#0e121a] rounded-xl p-2.5 border border-white/5 space-y-2 mb-2 text-xs">
@@ -335,16 +392,16 @@ export const WithdrawalHistoryView: React.FC<WithdrawalHistoryViewProps> = ({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 text-slate-400 min-w-0">
                       <Wallet className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="text-[11px] font-medium">To:</span>
+                      <span className="text-[11px] font-medium">{isSwap ? 'Recipient:' : 'To:'}</span>
                       <span className="text-[11px] font-mono text-slate-200 truncate">
-                        {formatShortAddress(tx.destinationAddress)}
+                        {isSwap ? tx.destinationAddress : formatShortAddress(tx.destinationAddress)}
                       </span>
                     </div>
 
                     <button
                       onClick={() => handleCopy(tx.destinationAddress, `addr-${tx.id}`)}
                       className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-[10px] font-mono flex items-center gap-1 transition"
-                      title="Copy full address"
+                      title="Copy destination"
                     >
                       {copiedId === `addr-${tx.id}` ? (
                         <>

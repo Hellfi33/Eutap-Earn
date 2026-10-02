@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Clock, Wallet, Info, Lock, ShieldCheck, History, ChevronRight } from 'lucide-react';
 import { WithdrawalTransaction } from '../types';
 import { WithdrawalHistoryView } from './WithdrawalHistoryView';
@@ -42,6 +42,12 @@ export const AirdropTab: React.FC<AirdropTabProps> = ({
   initialView = 'airdrop',
 }) => {
   const [currentView, setCurrentView] = useState<'airdrop' | 'history'>(initialView);
+
+  useEffect(() => {
+    if (initialView) {
+      setCurrentView(initialView);
+    }
+  }, [initialView]);
 
   // Calculate airdrop qualification power score based on player's efforts
   const airdropScore = Math.floor(
