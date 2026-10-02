@@ -8,7 +8,8 @@ export type MorseCommandId =
   | 'level_up'
   | 'next_stage'
   | 'fix_results'
-  | 'eu_scan';
+  | 'eu_scan'
+  | 'level_rewind';
 
 export interface MorseCommand {
   id: MorseCommandId;
@@ -120,6 +121,25 @@ export const MORSE_COMMANDS: MorseCommand[] = [
       'BLOCKCHAIN',
     ],
     description: 'Secret portal to EU Blockchain Network, EuScan Explorer & Token Factory.',
+  },
+  {
+    id: 'level_rewind',
+    title: 'Level Rewind',
+    code: '**REP*L',
+    compactCode: '**REP*L',
+    aliases: [
+      '**REP*L',
+      '--REP-L',
+      '++REP+L',
+      '**REPL',
+      'REP*L',
+      'REPL',
+      '**REP-L',
+      'REPEL',
+      'REP--L',
+      'REP++L',
+    ],
+    description: 'Secret protocol to rewind to a previous level of choice.',
   },
 ];
 

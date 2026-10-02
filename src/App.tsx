@@ -66,6 +66,7 @@ import { LuckyChanceWheelModal } from './components/LuckyChanceWheelModal';
 import { StageEvolutionModal } from './components/StageEvolutionModal';
 import { SecretGameFixModal } from './components/SecretGameFixModal';
 import { EuScanModal } from './components/EuScanModal';
+import { LevelRewindModal } from './components/LevelRewindModal';
 import { MorseCommandId } from './data/morseCommands';
 import { getTiersList, getLevelTapCap, STAGE_2_TIERS } from './data/tiers';
 import { getSeasonalSkinByLevel } from './data/seasonalSkins';
@@ -106,6 +107,7 @@ export default function App() {
   const [showStageEvolutionModal, setShowStageEvolutionModal] = useState(false);
   const [showSecretFixModal, setShowSecretFixModal] = useState(false);
   const [showEuScanModal, setShowEuScanModal] = useState(false);
+  const [showLevelRewindModal, setShowLevelRewindModal] = useState(false);
   const [isAutoTapping, setIsAutoTapping] = useState(false);
   const [morseToastMessage, setMorseToastMessage] = useState<string | null>(null);
 
@@ -969,7 +971,38 @@ export default function App() {
         setMorseToastMessage(null); // Secret: do not announce anywhere
         setShowEuScanModal(true);
         break;
+
+      case 'level_rewind':
+        soundFx.playReward();
+        setMorseToastMessage(null); // Secret: do not announce anywhere
+        setShowLevelRewindModal(true);
+        break;
     }
+  };
+
+  // Secret Level Rewind Handler (**REP*L)
+  // Allows player to go back to a previous level of choice and cannot go ahead. Does not affect anything else.
+  const handleRewindLevel = (targetLevel: number) => {
+    const stage = state.stage || 1;
+    const tiers = getTiersList(stage);
+    if (targetLevel < 0 || targetLevel >= state.tapLevel || targetLevel >= tiers.length) {
+      return;
+    }
+
+    const targetTier = tiers[targetLevel];
+    const newCap = getLevelTapCap(targetLevel, stage);
+
+    setState((prev) => ({
+      ...prev,
+      tapLevel: targetLevel,
+      totalEarned: targetTier.minCoins,
+      maxEnergy: newCap,
+      energy: Math.min(prev.energy, newCap),
+    }));
+
+    soundFx.playReward();
+    // Do not announce as per user instruction: "Don't announce this"
+    setMorseToastMessage(null);
   };
 
   // Secret Modal Handlers
@@ -1879,6 +1912,17 @@ export default function App() {
           onClose={() => setShowEuScanModal(false)}
           reserveBalance={state.reserveBalance}
           playerCoins={state.coins}
+        />
+      )}
+
+      {/* Secret Level Rewind Protocol Modal (**REP*L) */}
+      {showLevelRewindModal && (
+        <LevelRewindModal
+          isOpen={showLevelRewindModal}
+          onClose={() => setShowLevelRewindModal(false)}
+          currentLevel={state.tapLevel}
+          stage={state.stage || 1}
+          onRewindLevel={handleRewindLevel}
         />
       )}
 

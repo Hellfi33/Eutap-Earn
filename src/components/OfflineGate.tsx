@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { WifiOff, RefreshCw, AlertTriangle, ShieldAlert, Globe, Activity } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
@@ -10,26 +10,33 @@ interface OfflineGateProps {
 export const OfflineGate: React.FC<OfflineGateProps> = ({ isChecking, onRetry }) => {
   const [countdown, setCountdown] = useState<number>(3);
   const [retryAttempts, setRetryAttempts] = useState<number>(0);
+  const onRetryRef = useRef(onRetry);
 
-  // Auto-retry polling countdown
+  useEffect(() => {
+    onRetryRef.current = onRetry;
+  }, [onRetry]);
+
+  // Pure countdown timer for UI indicator
   useEffect(() => {
     const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          // Trigger automatic probe
-          onRetry().then((success) => {
-            if (!success) {
-              setRetryAttempts((c) => c + 1);
-            }
-          });
-          return 3;
-        }
-        return prev - 1;
-      });
+      setCountdown((prev) => (prev <= 1 ? 3 : prev - 1));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [onRetry]);
+  }, []);
+
+  // Auto-probe connectivity every 3 seconds outside of state updaters
+  useEffect(() => {
+    const probeTimer = setInterval(() => {
+      onRetryRef.current().then((success) => {
+        if (!success) {
+          setRetryAttempts((c) => c + 1);
+        }
+      });
+    }, 3000);
+
+    return () => clearInterval(probeTimer);
+  }, []);
 
   const handleManualRetry = () => {
     soundFx.playClick();
